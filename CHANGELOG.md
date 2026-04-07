@@ -1,8 +1,8 @@
 # Changelog
 
-## [v2.7.0] - 31.01.2026 (Firefox & Chrome Extensions)
+## [v2.6.2] - 06.04.2026 (Firefox & Chrome Extensions)
 
-### v2.7.0 New Features
+### v2.6.2 New Features
 
 - **In-Panel Update Notification Banner**
   - Both Chrome and Firefox extensions now read their installed version from the manifest and compare it against a remote `version.json` hosted on GitHub.
@@ -20,10 +20,10 @@
 - **Share Button**
   - Shortened "Share extension" to "Share" and prevented text wrapping on narrow panels.
 
-### v2.7.0 Improvements
+### v2.6.2 Improvements
 
-- Added Firefox-specific metadata (manifest version bump to 2.7.0 and AMO link) so update parity matches Chrome.
-- Introduced FORCE toggle for local testing (disabled in production) and ensured dismiss clicks don’t close the panel.
+- Added Firefox-specific metadata for update parity with Chrome.
+- Introduced FORCE toggle for local testing (disabled in production) and ensured dismiss clicks don't close the panel.
 
 ---
 

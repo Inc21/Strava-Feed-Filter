@@ -19,7 +19,7 @@ with Strava's design.
 
 ## 🆕 What's New
 
-- **Latest: v2.6.0** — 🌙 **Dark mode & UI refinements!** Full dark mode support for settings panel with proper styling for all components. Rouvy filtering support. Filter button repositioned to Strava's header navigation (right after notification bell) on larger screens with responsive fallback. Fixed dark mode styling for notification bell and secondary navigation. Improved spacing and alignment throughout the UI.
+- **Latest: v2.6.2** — ✨ **Update notifications & UI improvements!** In-panel update notification banner with version checking. Keyword preset buttons for Warm Up and Cool Down. Compact header buttons option for a cleaner interface. Improved dark mode support and panel usability.
 - **v2.5.0** — ✨ **Major UI & filtering improvements!** Compact settings panel with clickable info icons replacing verbose helper text. New device-based filtering with support for 21+ predefined devices (Zwift, Garmin, Wahoo, etc.) plus custom device field. Full support for group activities with improved device detection prioritizing metadata over user-editable names.
 - **v2.4.7** — 🐛 **Bug fixes & enhancements!** Fixed extension message listener for proper popup communication. Added "See what's new" link to extension popups linking to GitHub changelog.
 - **v2.4.6** — 🐛 **Bug fixes!** Fixed notification badge not clearing when viewing notifications - now properly marks all as read using Strava's API with CSRF authentication. Fixed badge color (now red instead of orange) and improved positioning in Chrome. Added missing "Hide Start Trial" functionality for Strava free users without premium subscriptions (bug reported by Reddit user: andreasbeer1981).

@@ -119,6 +119,7 @@ function getSettingsIconUrl(theme) {
         hideBandok: false,
         hideCoros: false,
         hideRouvy: false,
+        hideZwiftRoute: false,
         hideJoinWorkout: false,
         hideCoachCat: false,
         hideAthleteJoinedClub: false,
@@ -139,7 +140,7 @@ function getSettingsIconUrl(theme) {
         enabled: true,
         theme: 'light',
         compactButtons: false,
-        mobileResponsive: true
+        mobileResponsive: false  // Disabled by default - experimental feature
     };
 
     const TYPES = [
@@ -157,8 +158,11 @@ function getSettingsIconUrl(theme) {
         { key: "AlpineSki", label: "Alpine Ski" },
         { key: "Badminton", label: "Badminton" },
         { key: "BackcountrySki", label: "Backcountry Ski" },
+        { key: "Basketball", label: "Basketball" },
         { key: "Canoeing", label: "Canoe" },
+        { key: "Cricket", label: "Cricket" },
         { key: "Crossfit", label: "Crossfit" },
+        { key: "Dance", label: "Dance" },
         { key: "Elliptical", label: "Elliptical" },
         { key: "Golf", label: "Golf" },
         { key: "IceSkate", label: "Ice Skate" },
@@ -168,6 +172,7 @@ function getSettingsIconUrl(theme) {
         { key: "Kayaking", label: "Kayaking" },
         { key: "Kitesurf", label: "Kitesurf" },
         { key: "NordicSki", label: "Nordic Ski" },
+        { key: "Padel", label: "Padel" },
         { key: "Pickleball", label: "Pickleball" },
         { key: "Pilates", label: "Pilates" },
         { key: "Racquetball", label: "Racquetball" },
@@ -188,6 +193,7 @@ function getSettingsIconUrl(theme) {
         { key: "Velomobile", label: "Velomobile" },
         { key: "VirtualRun", label: "Virtual Run" },
         { key: "VirtualRow", label: "Virtual Rowing" },
+        { key: "Volleyball", label: "Volleyball" },
         { key: "WeightTraining", label: "Weight Training" },
         { key: "Windsurf", label: "Windsurf" },
         { key: "Wheelchair", label: "Wheelchair" },
@@ -796,6 +802,17 @@ function getSettingsIconUrl(theme) {
         color: #333 !important;
       }
 
+      /* Make keywords textarea larger and resizable */
+      .sff-clean-panel textarea.sff-keywords {
+        min-height: 80px !important;
+        resize: vertical !important;
+      }
+
+      /* Other textareas also resizable */
+      .sff-clean-panel textarea.sff-input {
+        resize: vertical !important;
+      }
+
       .sff-clean-panel .sff-input:focus {
         outline: none !important;
         border-color: #fc5200 !important;
@@ -954,6 +971,43 @@ function getSettingsIconUrl(theme) {
         }
         .sff-devices {
           grid-template-columns: repeat(2, 1fr) !important;
+        }
+      }
+
+      .sff-dropdown-description {
+        font-size: 12px !important;
+        color: #666 !important;
+        margin: 0 0 12px 0 !important;
+        line-height: 1.4 !important;
+      }
+
+      .sff-theme-dark .sff-dropdown-description {
+        color: #999 !important;
+      }
+
+      .sff-embeds-controls {
+        margin-bottom: 12px !important;
+        padding-bottom: 12px !important;
+        border-bottom: 1px solid #e5e5e5 !important;
+      }
+
+      .sff-theme-dark .sff-embeds-controls {
+        border-bottom-color: #333 !important;
+      }
+
+      .sff-embeds-hide-all {
+        font-weight: 600 !important;
+      }
+
+      .sff-embeds-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 4px 12px !important;
+      }
+
+      @media (max-width: 400px) {
+        .sff-embeds-grid {
+          grid-template-columns: 1fr !important;
         }
       }
 
@@ -1373,19 +1427,18 @@ function getSettingsIconUrl(theme) {
 
       /* Secondary navigation row for smaller screens */
       .sff-secondary-nav {
-        position: fixed !important;
-        top: 55px !important;
-        left: 0 !important;
-        right: 0 !important;
-        z-index: 10 !important;
+        position: relative !important;
         background: white !important;
-        border-bottom: 1px solid #e5e5e5 !important;
+        border-top: 1px solid #e5e5e5 !important;
         padding: 8px 16px !important;
         display: none !important;
         justify-content: flex-end !important;
         align-items: center !important;
         gap: 12px !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+        overflow: hidden !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
       }
 
       /* Dark theme overrides scoped to the filter panel and secondary nav */
@@ -1717,7 +1770,7 @@ function getSettingsIconUrl(theme) {
         color: #fc5200 !important;
       }
 
-      /* Show secondary nav on smaller screens on dashboard */
+      /* Show secondary nav on smaller screens ONLY on dashboard */
       @media (max-width: 1479px) {
         body[data-sff-dashboard="true"] .sff-secondary-nav {
           display: flex !important;
@@ -1733,22 +1786,22 @@ function getSettingsIconUrl(theme) {
           display: none !important;
         }
 
-        /* Adjust page content to account for secondary nav ONLY on dashboard */
-        body[data-sff-dashboard="true"] {
-          padding-top: 60px !important;
+        /* Show secondary nav on ALL pages at small screens */
+        .sff-secondary-nav {
+          display: flex !important;
         }
 
-        /* Additional margin for main content area to ensure no overlap */
-        body[data-sff-dashboard="true"] main,
-        body[data-sff-dashboard="true"] .view {
-          margin-top: 48px !important;
+        /* Push content down on dashboard (feed page) */
+        body[data-sff-dashboard="true"] section {
+          margin-top: 49px !important;
+        }
+
+        /* Push content down on non-dashboard pages */
+        body:not([data-sff-dashboard="true"]) .page.container {
+          margin-top: 49px !important;
         }
       }
 
-      /* Show secondary nav on activity pages (all screen sizes) */
-      body:not([data-sff-dashboard="true"]) .sff-secondary-nav {
-        display: flex !important;
-      }
 
       /* Secondary nav filter button */
       .sff-secondary-filter-btn {
@@ -2740,6 +2793,7 @@ function getSettingsIconUrl(theme) {
             settings.hideBandok = panel.querySelector('.sff-hideBandok') ? panel.querySelector('.sff-hideBandok').checked : settings.hideBandok;
             settings.hideCoros = panel.querySelector('.sff-hideCoros') ? panel.querySelector('.sff-hideCoros').checked : settings.hideCoros;
             settings.hideRouvy = panel.querySelector('.sff-hideRouvy') ? panel.querySelector('.sff-hideRouvy').checked : settings.hideRouvy;
+            settings.hideZwiftRoute = panel.querySelector('.sff-hideZwiftRoute') ? panel.querySelector('.sff-hideZwiftRoute').checked : settings.hideZwiftRoute;
             settings.hideJoinWorkout = panel.querySelector('.sff-hideJoinWorkout') ? panel.querySelector('.sff-hideJoinWorkout').checked : settings.hideJoinWorkout;
             settings.hideCoachCat = panel.querySelector('.sff-hideCoachCat') ? panel.querySelector('.sff-hideCoachCat').checked : settings.hideCoachCat;
             settings.hideFooter = panel.querySelector('.sff-hideFooter') ? panel.querySelector('.sff-hideFooter').checked : settings.hideFooter;
@@ -2837,8 +2891,12 @@ function getSettingsIconUrl(theme) {
                 LogicModule.updateRunHealthVisibility();
                 LogicModule.updateBandokVisibility();
                 LogicModule.updateCorosVisibility();
+                LogicModule.updateRouvyVisibility();
+                LogicModule.updateZwiftRouteVisibility();
                 LogicModule.updateJoinWorkoutVisibility();
                 LogicModule.updateCoachCatVisibility();
+                LogicModule.updateXertVisibility();
+                LogicModule.updateCyqlVisibility();
                 LogicModule.updateAthleteJoinedClubVisibility();
 
                 // On non-dashboard pages, still show a minimal secondary nav with filter/settings button
@@ -2894,7 +2952,15 @@ function getSettingsIconUrl(theme) {
                     miniNav.classList.add('sff-theme-dark');
                 }
 
-                document.body.appendChild(miniNav);
+                // Append inside Strava's global header so it inherits scroll/fixed behavior
+                const globalHeader = document.querySelector('#global-header');
+                if (globalHeader) {
+                    globalHeader.appendChild(miniNav);
+                } else {
+                    // Fallback: prepend to .view or body
+                    const viewEl = document.querySelector('div.view') || document.body;
+                    viewEl.prepend(miniNav);
+                }
 
                 // Create panel for settings access on non-dashboard pages
                 const panel = this._createPanel();
@@ -2954,13 +3020,64 @@ function getSettingsIconUrl(theme) {
             const kudosDisplay = settings.showKudosButton ? (settings.compactButtons ? 'block' : 'inline-flex') : 'none';
             secondaryKudosElement.style.setProperty('display', kudosDisplay, 'important');
 
-            // Create notification bell with new JSON endpoint approach
+            // Create notification bell for all pages
             const notificationBell = this._createNotificationBell();
             
+            // Check if we're on dashboard
+            const isDashboard = UtilsModule.isOnDashboard();
+            
+            // Create Back to Feed button for non-dashboard pages
+            let backToFeedBtn = null;
+            if (!isDashboard) {
+                backToFeedBtn = document.createElement('button');
+                backToFeedBtn.className = 'sff-back-to-feed-btn';
+                
+                if (settings.compactButtons) {
+                    backToFeedBtn.classList.add('sff-compact');
+                    backToFeedBtn.innerHTML = '<span class="sff-compact-icon" style="margin-right:0;"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="currentColor"/></svg></span>';
+                    backToFeedBtn.style.cssText = 'margin-right: auto; padding: 0.375rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; height: 32px; width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
+                } else {
+                    backToFeedBtn.innerHTML = '← Back to Feed';
+                    backToFeedBtn.style.cssText = 'margin-right: auto; padding: 0.375rem 0.75rem; font-size: 0.875rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; height: 32px; display: inline-flex; align-items: center; border-radius: 4px; font-family: "Roboto", sans-serif; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
+                }
+                
+                // Add hover effect
+                backToFeedBtn.addEventListener('mouseover', () => {
+                    backToFeedBtn.style.backgroundColor = '#fc5200';
+                    backToFeedBtn.style.color = 'white';
+                });
+                backToFeedBtn.addEventListener('mouseout', () => {
+                    backToFeedBtn.style.backgroundColor = 'transparent';
+                    backToFeedBtn.style.color = '#fc5200';
+                });
+                
+                // Wire up navigation
+                backToFeedBtn.addEventListener('click', () => {
+                    if (document.referrer && document.referrer.includes('strava.com/dashboard')) {
+                        window.history.back();
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
+                });
+            }
+            
+            // Append buttons in order based on page type
+            if (backToFeedBtn) secondaryNav.appendChild(backToFeedBtn);
             secondaryNav.appendChild(secondaryKudosElement);
             secondaryNav.appendChild(notificationBell);
             secondaryNav.appendChild(secondaryFilterElement);
-            document.body.appendChild(secondaryNav);
+
+            // Append inside Strava's global header so it inherits scroll/fixed behavior
+            const globalHeader = document.querySelector('#global-header');
+            if (globalHeader) {
+                globalHeader.appendChild(secondaryNav);
+                document.body.setAttribute('data-sff-secondary-nav', 'true');
+            } else {
+                // Fallback: insert at top of view if header not found
+                const viewEl = document.querySelector('div.view') || document.body;
+                viewEl.prepend(secondaryNav);
+                document.body.setAttribute('data-sff-secondary-nav', 'true');
+            }
 
             this.syncSecondaryKudosVisibility();
             this.toggleNotificationBell(); // Set initial visibility based on settings
@@ -2987,13 +3104,18 @@ function getSettingsIconUrl(theme) {
                 secondaryNav.classList.add('sff-theme-dark');
             }
 
-            // Insert button after notifications element
+            // Insert button after notifications element (on all pages)
             const notificationsLi = document.querySelector('li#notifications');
             if (notificationsLi && notificationsLi.parentNode) {
                 notificationsLi.parentNode.insertBefore(btnLi, notificationsLi.nextSibling);
             } else {
-                // Fallback: append to body if notifications element not found
-                document.body.appendChild(btnLi);
+                // Fallback: try to insert into user-nav if notifications not found
+                const userNav = document.querySelector('.user-nav.nav-group');
+                if (userNav) {
+                    userNav.prepend(btnLi);
+                } else {
+                    document.body.appendChild(btnLi);
+                }
             }
             document.body.appendChild(panel);
 
@@ -3604,48 +3726,69 @@ function getSettingsIconUrl(theme) {
                     </div>
                     <div class="sff-row sff-dropdown">
                         <div class="sff-dropdown-header">
-                            <span class="sff-label">External Service Embeds</span>
+                            <span class="sff-label">Third-Party Service Embeds</span>
                             <div class="sff-dropdown-right">
                                 <span class="sff-dropdown-indicator">▼</span>
                             </div>
                         </div>
                         <div class="sff-dropdown-content">
-                            <label class="sff-chip ${settings.hideMyWindsock ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideMyWindsock" ${settings.hideMyWindsock ? 'checked' : ''}>
-                                Hide "myWindsock Report"
-                            </label>
-                            <label class="sff-chip ${settings.hideSummitbag ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideSummitbag" ${settings.hideSummitbag ? 'checked' : ''}>
-                                Hide "summitbag.com"
-                            </label>
-                            <label class="sff-chip ${settings.hideRunHealth ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideRunHealth" ${settings.hideRunHealth ? 'checked' : ''}>
-                                Hide "Run Health"
-                            </label>
-                            <label class="sff-chip ${settings.hideWandrer ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideWandrer" ${settings.hideWandrer ? 'checked' : ''}>
-                                Hide "Wandrer" embeds
-                            </label>
-                            <label class="sff-chip ${settings.hideBandok ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideBandok" ${settings.hideBandok ? 'checked' : ''}>
-                                Hide "Bandok.com"
-                            </label>
-                            <label class="sff-chip ${settings.hideCoros ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideCoros" ${settings.hideCoros ? 'checked' : ''}>
-                                Hide "COROS"
-                            </label>
-                            <label class="sff-chip ${settings.hideRouvy ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideRouvy" ${settings.hideRouvy ? 'checked' : ''}>
-                                Hide "Rouvy"
-                            </label>
-                            <label class="sff-chip ${settings.hideJoinWorkout ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideJoinWorkout" ${settings.hideJoinWorkout ? 'checked' : ''}>
-                                Hide "JOIN workout"
-                            </label>
-                            <label class="sff-chip ${settings.hideCoachCat ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-hideCoachCat" ${settings.hideCoachCat ? 'checked' : ''}>
-                                Hide "CoachCat Training Summary"
-                            </label>
+                            <p class="sff-dropdown-description">Hide auto-generated snippets from external services in activity descriptions</p>
+                            <div class="sff-embeds-controls">
+                                <label class="sff-chip sff-embeds-hide-all ${settings.hideAllEmbeds ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideAllEmbeds" ${settings.hideAllEmbeds ? 'checked' : ''}>
+                                    Hide All Embeds
+                                </label>
+                            </div>
+                            <div class="sff-embeds-grid">
+                                <label class="sff-chip ${settings.hideMyWindsock ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideMyWindsock" ${settings.hideMyWindsock ? 'checked' : ''}>
+                                    myWindsock
+                                </label>
+                                <label class="sff-chip ${settings.hideSummitbag ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideSummitbag" ${settings.hideSummitbag ? 'checked' : ''}>
+                                    summitbag.com
+                                </label>
+                                <label class="sff-chip ${settings.hideRunHealth ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideRunHealth" ${settings.hideRunHealth ? 'checked' : ''}>
+                                    myTF.run
+                                </label>
+                                <label class="sff-chip ${settings.hideWandrer ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideWandrer" ${settings.hideWandrer ? 'checked' : ''}>
+                                    Wandrer
+                                </label>
+                                <label class="sff-chip ${settings.hideBandok ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideBandok" ${settings.hideBandok ? 'checked' : ''}>
+                                    Bandok.com
+                                </label>
+                                <label class="sff-chip ${settings.hideCoros ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideCoros" ${settings.hideCoros ? 'checked' : ''}>
+                                    COROS
+                                </label>
+                                <label class="sff-chip ${settings.hideRouvy ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideRouvy" ${settings.hideRouvy ? 'checked' : ''}>
+                                    Rouvy
+                                </label>
+                                <label class="sff-chip ${settings.hideZwiftRoute ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideZwiftRoute" ${settings.hideZwiftRoute ? 'checked' : ''}>
+                                    Zwift route
+                                </label>
+                                <label class="sff-chip ${settings.hideJoinWorkout ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideJoinWorkout" ${settings.hideJoinWorkout ? 'checked' : ''}>
+                                    JOIN workout
+                                </label>
+                                <label class="sff-chip ${settings.hideCoachCat ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideCoachCat" ${settings.hideCoachCat ? 'checked' : ''}>
+                                    CoachCat
+                                </label>
+                                <label class="sff-chip ${settings.hideXert ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideXert" ${settings.hideXert ? 'checked' : ''}>
+                                    Xert
+                                </label>
+                                <label class="sff-chip ${settings.hideCyql ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideCyql" ${settings.hideCyql ? 'checked' : ''}>
+                                    Cyql
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div class="sff-row sff-dropdown">
@@ -3729,6 +3872,7 @@ function getSettingsIconUrl(theme) {
                         Manage your Strava Feed Filter settings.
                     </p>
                     
+                    <!-- Mobile Responsiveness - Hidden (experimental feature, disabled by default)
                     <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #ddd;">
                         <div class="sff-label-with-info">
                             <label class="sff-chip ${settings.mobileResponsive ? 'checked' : ''}">
@@ -3738,6 +3882,7 @@ function getSettingsIconUrl(theme) {
                             <span class="sff-info-icon" data-info="Makes activity pages mobile-friendly with a compact single-column layout, hides footer clutter, and adds the secondary navigation bar. Responsive design from 350px to 765px.">?</span>
                         </div>
                     </div>
+                    -->
                     
                     <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #333;">Header Settings</h4>
                     
@@ -3826,6 +3971,7 @@ function getSettingsIconUrl(theme) {
                         </select>
                     </div>
                     
+                    <!-- Mobile Responsiveness - Hidden (experimental feature, disabled by default)
                     <div style="margin-bottom: 7.5px;">
                         <div class="sff-label-with-info">
                             <label class="sff-chip ${settings.mobileResponsive ? 'checked' : ''}">
@@ -3835,6 +3981,7 @@ function getSettingsIconUrl(theme) {
                             <span class="sff-info-icon" data-info="Makes activity detail pages mobile-friendly by converting the desktop grid layout into a single-column stack on small screens (≤768px). Also remembers your scroll position on the dashboard so you return to the same spot after viewing an activity.">?</span>
                         </div>
                     </div>
+                    -->
                     
                     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
                     
@@ -4052,6 +4199,8 @@ function getSettingsIconUrl(theme) {
                         const preset = KEYWORD_PRESETS.find(p => p.id === presetId);
                         if (!preset) return;
 
+                        console.log('[SFF] Preset clicked:', presetId, 'keywords:', preset.keywords);
+
                         const existing = (keywordsTextarea.value || '')
                             .split(',')
                             .map(k => k.trim())
@@ -4068,6 +4217,7 @@ function getSettingsIconUrl(theme) {
 
                         if (updated) {
                             keywordsTextarea.value = Array.from(uniqueKeywords).join(', ');
+                            console.log('[SFF] Updated keywords:', keywordsTextarea.value);
                             autoResizeKeywords();
                             UIModule.applySettings(panel);
                             UtilsModule.saveSettings(settings);
@@ -4460,7 +4610,47 @@ function getSettingsIconUrl(theme) {
                         LogicModule.filterActivities();
                     }
 
-                    // External embeds
+                    // External embeds - Hide All
+                    if (e.target.classList.contains('sff-hideAllEmbeds')) {
+                        const isChecked = e.target.checked;
+                        settings.hideAllEmbeds = isChecked;
+                        settings.hideMyWindsock = isChecked;
+                        settings.hideSummitbag = isChecked;
+                        settings.hideRunHealth = isChecked;
+                        settings.hideWandrer = isChecked;
+                        settings.hideBandok = isChecked;
+                        settings.hideCoros = isChecked;
+                        settings.hideRouvy = isChecked;
+                        settings.hideZwiftRoute = isChecked;
+                        settings.hideJoinWorkout = isChecked;
+                        settings.hideCoachCat = isChecked;
+                        settings.hideXert = isChecked;
+                        settings.hideCyql = isChecked;
+                        UtilsModule.saveSettings(settings);
+                        
+                        // Update all individual checkboxes
+                        const embedCheckboxes = panel.querySelectorAll('.sff-embeds-grid input[type="checkbox"]');
+                        embedCheckboxes.forEach(cb => {
+                            cb.checked = isChecked;
+                            cb.parentElement.classList.toggle('checked', isChecked);
+                        });
+                        
+                        // Update visibility for all embeds
+                        LogicModule.updateMyWindsockVisibility();
+                        LogicModule.updateSummitbagVisibility();
+                        LogicModule.updateRunHealthVisibility();
+                        LogicModule.updateWandrerVisibility();
+                        LogicModule.updateBandokVisibility();
+                        LogicModule.updateCorosVisibility();
+                        LogicModule.updateRouvyVisibility();
+                        LogicModule.updateZwiftRouteVisibility();
+                        LogicModule.updateJoinWorkoutVisibility();
+                        LogicModule.updateCoachCatVisibility();
+                        LogicModule.updateXertVisibility();
+                        LogicModule.updateCyqlVisibility();
+                    }
+                    
+                    // External embeds - Individual
                     if (e.target.classList.contains('sff-hideMyWindsock')) {
                         settings.hideMyWindsock = e.target.checked;
                         UtilsModule.saveSettings(settings);
@@ -4470,6 +4660,11 @@ function getSettingsIconUrl(theme) {
                         settings.hideSummitbag = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateSummitbagVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideRunHealth')) {
+                        settings.hideRunHealth = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateRunHealthVisibility();
                     }
                     if (e.target.classList.contains('sff-hideBandok')) {
                         settings.hideBandok = e.target.checked;
@@ -4486,6 +4681,11 @@ function getSettingsIconUrl(theme) {
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateRouvyVisibility();
                     }
+                    if (e.target.classList.contains('sff-hideZwiftRoute')) {
+                        settings.hideZwiftRoute = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateZwiftRouteVisibility();
+                    }
                     if (e.target.classList.contains('sff-hideJoinWorkout')) {
                         settings.hideJoinWorkout = e.target.checked;
                         UtilsModule.saveSettings(settings);
@@ -4495,6 +4695,16 @@ function getSettingsIconUrl(theme) {
                         settings.hideCoachCat = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateCoachCatVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideXert')) {
+                        settings.hideXert = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateXertVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideCyql')) {
+                        settings.hideCyql = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateCyqlVisibility();
                     }
                     // Footer
                     if (e.target.classList.contains('sff-hideFooter')) {
@@ -5256,21 +5466,22 @@ function getSettingsIconUrl(theme) {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    // Find only text-containing elements (paragraphs and spans) that specifically contain myWindsock content
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text');
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
-                        // Only hide if this element specifically contains the myWindsock report and not other content
-                        if (text.includes('-- myWindsock Report --') && text.length < 500) { // Limit to avoid hiding large containers
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
+                        if (text.includes('-- myWindsock Report --')) {
                             if (settings.enabled && settings.hideMyWindsock) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
@@ -5285,20 +5496,23 @@ function getSettingsIconUrl(theme) {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text, [data-testid="activity_description_wrapper"]');
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
                         const hasWandrer = /\bfrom\s+wandrer\b/i.test(text) || /\bwandrer\b/i.test(text);
-                        if (hasWandrer && text.length < 800) {
+                        if (hasWandrer) {
                             if (settings.enabled && settings.hideWandrer) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
@@ -5313,21 +5527,22 @@ function getSettingsIconUrl(theme) {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    // Find only text-containing elements (paragraphs and spans) that specifically contain summitbag content
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text');
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
-                        // Only hide if this element specifically contains summitbag and not other content
-                        if (text.includes('summitbag.com') && text.length < 500) { // Limit to avoid hiding large containers
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
+                        if (text.includes('summitbag.com')) {
                             if (settings.enabled && settings.hideSummitbag) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
@@ -5342,21 +5557,23 @@ function getSettingsIconUrl(theme) {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text, [data-testid="activity_description_wrapper"]');
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
-                        // Match "Activity name auto generated by Bandok.com"
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
                         const hasBandok = /activity\s+name\s+auto\s+generated\s+by\s+bandok\.com/i.test(text);
-                        if (hasBandok && text.length < 200) {
+                        if (hasBandok) {
                             if (settings.enabled && settings.hideBandok) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
@@ -5371,21 +5588,23 @@ function getSettingsIconUrl(theme) {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text, [data-testid="activity_description_wrapper"]');
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
-                        // Match "-- from COROS" (English), "-- von COROS" (German), or similar patterns
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
                         const hasCoros = /--\s*(from|von)\s+coros/i.test(text) || /--\s*coros/i.test(text);
-                        if (hasCoros && text.length < 500) {
+                        if (hasCoros) {
                             if (settings.enabled && settings.hideCoros) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
@@ -5400,21 +5619,22 @@ function getSettingsIconUrl(theme) {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    // Find only text-containing elements (paragraphs and spans) that specifically contain Run Health content
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text');
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
-                        // Only hide if this element specifically contains Run Health and not other content
-                        if (text.includes('www.myTF.run') && text.length < 500) { // Limit to avoid hiding large containers
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
+                        if (text.includes('www.myTF.run')) {
                             if (settings.enabled && settings.hideRunHealth) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
@@ -5429,21 +5649,23 @@ function getSettingsIconUrl(theme) {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text, [data-testid="activity_description_wrapper"]');
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
-                        // Match "rouvy.com" or similar patterns
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
                         const hasRouvy = /rouvy\.com/i.test(text);
-                        if (hasRouvy && text.length < 500) {
+                        if (hasRouvy) {
                             if (settings.enabled && settings.hideRouvy) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
@@ -5453,27 +5675,63 @@ function getSettingsIconUrl(theme) {
             }
         },
 
+        updateZwiftRouteVisibility() {
+            try {
+                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+
+                activities.forEach(activity => {
+                    // Find only paragraphs within the activity description wrapper
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
+
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
+                        // Detect Zwift route embeds - starts with map emoji
+                        const hasZwiftRoute = text.startsWith('🗺️');
+                        if (hasZwiftRoute) {
+                            if (settings.enabled && settings.hideZwiftRoute) {
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
+                                }
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
+                            }
+                        }
+                    });
+                });
+            } catch (e) {
+                // updateZwiftRouteVisibility error
+            }
+        },
+
         updateJoinWorkoutVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    // Find only text-containing elements (paragraphs and spans) that specifically contain JOIN workout content
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text, [data-testid="activity_description_wrapper"]');
+                    // Find only paragraphs within the activity description wrapper
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
                         // Detect JOIN workout embeds
-                        const hasJoin = /\bJOIN workout\b/i.test(text) || text.includes('strava.com/clubs/join-cycling');
-                        if (hasJoin && text.length < 800) { // Limit to avoid hiding large containers
+                        const hasJoin = text.includes('JOIN workout');
+                        if (hasJoin) {
                             if (settings.enabled && settings.hideJoinWorkout) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
@@ -5488,26 +5746,91 @@ function getSettingsIconUrl(theme) {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
-                    const textElements = activity.querySelectorAll('p, span, .text-content, .description-text, .activity-text, [data-testid="activity_description_wrapper"]');
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
 
-                    textElements.forEach(element => {
-                        const text = element.textContent?.trim() || '';
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
                         const hasCoachCat = /\bCoachCat Training Summary\b/i.test(text) || text.includes('fascatcoaching.com/app');
-                        if (hasCoachCat && text.length < 800) {
+                        if (hasCoachCat) {
                             if (settings.enabled && settings.hideCoachCat) {
-                                if (element.dataset.sffHiddenBy !== 'sff') {
-                                    element.dataset.sffHiddenBy = 'sff';
-                                    element.style.display = 'none';
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
                                 }
-                            } else if (element.dataset.sffHiddenBy === 'sff') {
-                                element.style.display = '';
-                                delete element.dataset.sffHiddenBy;
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
                             }
                         }
                     });
                 });
             } catch (e) {
                 // updateCoachCatVisibility error
+            }
+        },
+
+        updateXertVisibility() {
+            try {
+                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+
+                activities.forEach(activity => {
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
+
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
+                        const hasXert = /(?:🥉|🥈|🥇|🏅|🎖️)?\s*Xert|Xert\s+(?:Bronze|Silver|Gold|Breakthrough|Achievement|Performance|Analysis)/i.test(text);
+                        if (hasXert) {
+                            if (settings.enabled && settings.hideXert) {
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
+                                }
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
+                            }
+                        }
+                    });
+                });
+            } catch (e) {
+                // updateXertVisibility error
+            }
+        },
+
+        updateCyqlVisibility() {
+            try {
+                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+
+                activities.forEach(activity => {
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
+
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
+                        const hasCyql = /Cyql|cyql\.app/i.test(text);
+                        if (hasCyql) {
+                            if (settings.enabled && settings.hideCyql) {
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
+                                }
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
+                            }
+                        }
+                    });
+                });
+            } catch (e) {
+                // updateCyqlVisibility error
             }
         },
 
@@ -6095,6 +6418,8 @@ function getSettingsIconUrl(theme) {
                     this.updateRouvyVisibility();
                     this.updateJoinWorkoutVisibility();
                     this.updateCoachCatVisibility();
+                    this.updateXertVisibility();
+                    this.updateCyqlVisibility();
                     this.updateAthleteJoinedClubVisibility();
                     this.manageSeeMoreButtons();
                 } catch (e) {
@@ -6144,6 +6469,8 @@ function getSettingsIconUrl(theme) {
                 this.updateRouvyVisibility();
                 this.updateJoinWorkoutVisibility();
                 this.updateCoachCatVisibility();
+                this.updateXertVisibility();
+                this.updateCyqlVisibility();
                 this.updateAthleteJoinedClubVisibility();
                 this.manageHeaderKudosButton();
                 UIModule.syncSecondaryKudosVisibility();
@@ -7074,19 +7401,12 @@ function getSettingsIconUrl(theme) {
 
     function injectMobileResponsiveCSS() {
         if (mobileStyleEl) return; // Already injected
-        // CSS here is a safety net; the heavy lifting is done by inline styles in JS.
+        // Targeted mobile CSS — works WITH Strava's layout instead of fighting it.
         // No @media query — the attribute is only set when outerWidth <= breakpoint.
         mobileStyleEl = GM_addStyle(`
             /* SFF Mobile Responsive - Activity Pages */
 
-            /* ======== NUCLEAR MOBILE RESET ======== */
-            /* Force ALL elements inside the page to respect mobile width */
-            body[data-sff-mobile],
-            body[data-sff-mobile] * {
-                max-width: 100vw !important;
-                box-sizing: border-box !important;
-            }
-
+            /* ======== BASE MOBILE OVERRIDES ======== */
             body[data-sff-mobile] {
                 overflow-x: hidden !important;
                 width: 100% !important;
@@ -7100,31 +7420,6 @@ function getSettingsIconUrl(theme) {
                 min-width: 0 !important;
             }
 
-            /* Kill ALL floats inside page content */
-            body[data-sff-mobile] .page.container *,
-            body[data-sff-mobile] .container *,
-            body[data-sff-mobile] [class*="container"] * {
-                float: none !important;
-            }
-
-            /* Force all grid columns to full width */
-            body[data-sff-mobile] [class*="spans"],
-            body[data-sff-mobile] [class*="span"] {
-                width: 100% !important;
-                max-width: 100% !important;
-                min-width: 0 !important;
-                float: none !important;
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-            }
-
-            /* Force all .row to be flex column */
-            body[data-sff-mobile] .row {
-                display: flex !important;
-                flex-direction: column !important;
-                width: 100% !important;
-            }
-
             /* ---- Hide left sidenav ---- */
             body[data-sff-mobile] nav.sidenav,
             body[data-sff-mobile] .sidenav {
@@ -7136,8 +7431,7 @@ function getSettingsIconUrl(theme) {
 
             /* ---- Page container ---- */
             body[data-sff-mobile] div.page.container,
-            body[data-sff-mobile] .page.container,
-            body[data-sff-mobile] .container {
+            body[data-sff-mobile] .page.container {
                 width: 100% !important;
                 max-width: 100vw !important;
                 min-width: 0 !important;
@@ -7145,6 +7439,23 @@ function getSettingsIconUrl(theme) {
                 padding-right: 8px !important;
                 box-sizing: border-box !important;
                 overflow-x: hidden !important;
+            }
+
+            /* ---- Strava grid columns: full-width stack ---- */
+            body[data-sff-mobile] .page.container [class*="spans"] {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                float: none !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+
+            /* ---- Rows stack vertically ---- */
+            body[data-sff-mobile] .page.container .row {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
             }
 
             /* ---- Heading section ---- */
@@ -7177,12 +7488,10 @@ function getSettingsIconUrl(theme) {
                 padding: 2px 4px !important;
             }
 
-            /* Force heading h2 and title to left-align */
+            /* Force heading titles to left-align */
             body[data-sff-mobile] #heading h1,
             body[data-sff-mobile] #heading h2,
-            body[data-sff-mobile] #heading h3,
-            body[data-sff-mobile] h2.text-title3,
-            body[data-sff-mobile] .text-title3 {
+            body[data-sff-mobile] #heading h3 {
                 text-align: left !important;
                 width: 100% !important;
                 float: none !important;
@@ -7207,7 +7516,7 @@ function getSettingsIconUrl(theme) {
                 padding-right: 0 !important;
             }
 
-            /* ---- Prevent title and profile image overflow ---- */
+            /* ---- Prevent title overflow ---- */
             body[data-sff-mobile] h1.activity-name,
             body[data-sff-mobile] .activity-name,
             body[data-sff-mobile] [data-testid="activity_name"] {
@@ -7218,8 +7527,6 @@ function getSettingsIconUrl(theme) {
             }
 
             /* ---- Activity summary: avatar + details row ---- */
-            body[data-sff-mobile] .activity-summary .media,
-            body[data-sff-mobile] .activity-summary .avatar-badge,
             body[data-sff-mobile] .details-container {
                 display: flex !important;
                 flex-direction: row !important;
@@ -7230,8 +7537,6 @@ function getSettingsIconUrl(theme) {
                 overflow: hidden !important;
             }
 
-            body[data-sff-mobile] .activity-summary .pull-left,
-            body[data-sff-mobile] .activity-summary .avatar-content,
             body[data-sff-mobile] .details-container .avatar {
                 float: none !important;
                 flex-shrink: 0 !important;
@@ -7245,7 +7550,6 @@ function getSettingsIconUrl(theme) {
                 border-radius: 50% !important;
             }
 
-            body[data-sff-mobile] .activity-summary .media-body,
             body[data-sff-mobile] .details {
                 min-width: 0 !important;
                 overflow: hidden !important;
@@ -7263,12 +7567,6 @@ function getSettingsIconUrl(theme) {
                 float: none !important;
                 padding: 2px 0 !important;
                 margin: 2px 0 !important;
-            }
-
-            body[data-sff-mobile] .social button,
-            body[data-sff-mobile] .social a {
-                font-size: 0.75rem !important;
-                padding: 4px 8px !important;
             }
 
             /* ---- Inline stats responsive ---- */
@@ -7301,15 +7599,16 @@ function getSettingsIconUrl(theme) {
                 padding: 4px 0 !important;
             }
 
-            body[data-sff-mobile] .more-stats table {
-                width: 100% !important;
-                table-layout: auto !important;
-                font-size: 0.8rem !important;
+            body[data-sff-mobile] .page.container .more-stats .row {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
             }
 
-            body[data-sff-mobile] .more-stats td,
-            body[data-sff-mobile] .more-stats th {
-                padding: 3px 4px !important;
+            /* Let more-stats spans keep natural width for Avg/Max columns */
+            body[data-sff-mobile] .page.container .more-stats [class*="spans"] {
+                width: auto !important;
+                flex: 1 1 auto !important;
             }
 
             /* ---- Weather section ---- */
@@ -7366,13 +7665,6 @@ function getSettingsIconUrl(theme) {
 
             body[data-sff-mobile] table {
                 width: 100% !important;
-                font-size: 0.8rem !important;
-            }
-
-            body[data-sff-mobile] table td,
-            body[data-sff-mobile] table th {
-                padding: 3px 4px !important;
-                font-size: 0.75rem !important;
             }
 
             /* ---- Segment detail page ---- */
@@ -7395,20 +7687,185 @@ function getSettingsIconUrl(theme) {
                 overflow-x: auto !important;
             }
 
-            /* ---- Global header responsive ---- */
-            body[data-sff-mobile] #global-header .container,
+            /* ---- Global header: compact mobile layout ---- */
             body[data-sff-mobile] #global-header nav.nav-bar {
+                display: flex !important;
+                align-items: center !important;
+                padding: 0 8px !important;
+                min-height: 48px !important;
                 width: 100% !important;
                 max-width: 100% !important;
+                flex-wrap: nowrap !important;
+            }
+
+            body[data-sff-mobile] #global-header .container {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+
+            /* Show hamburger menu expander */
+            body[data-sff-mobile] .menu-expander {
+                display: flex !important;
+                align-items: center !important;
+                cursor: pointer !important;
+                padding: 8px !important;
+            }
+
+            /* Hide "Menu" text button (hamburger icon replaces it) */
+            body[data-sff-mobile] .btn-mobile-menu {
+                display: none !important;
+            }
+
+            /* Hide Dashboard/Training text nav links */
+            body[data-sff-mobile] .global-nav {
+                display: none !important;
+            }
+
+            /* Hide Give a Gift / Start Trial / upgrade buttons */
+            body[data-sff-mobile] .nav-item.upgrade {
+                display: none !important;
+            }
+
+            /* Hide upload menu on mobile */
+            body[data-sff-mobile] .upload-menu {
+                display: none !important;
+            }
+
+            /* Hide athlete name text, keep avatar */
+            body[data-sff-mobile] .user-menu .athlete-name {
+                display: none !important;
+            }
+
+            /* Hide dropdown arrow next to avatar */
+            body[data-sff-mobile] .user-menu .accessible-nav-arrow {
+                display: none !important;
+            }
+
+            /* Force nav-container to be visible (override Bootstrap collapse) */
+            body[data-sff-mobile] .nav-container.collapse {
+                display: flex !important;
+                align-items: center !important;
+                flex: 1 !important;
+                justify-content: flex-end !important;
+                height: auto !important;
+            }
+
+            /* User nav: compact horizontal row */
+            body[data-sff-mobile] .user-nav {
+                display: flex !important;
+                align-items: center !important;
+                gap: 2px !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                list-style: none !important;
+            }
+
+            /* Search bar: compact */
+            body[data-sff-mobile] #global-search-bar {
+                margin: 0 !important;
+            }
+
+            /* ---- Hamburger expanded state ---- */
+            body[data-sff-mobile].sff-nav-expanded .global-nav {
+                display: block !important;
+                position: absolute !important;
+                top: 48px !important;
+                left: 0 !important;
+                right: 0 !important;
+                background: white !important;
+                border-bottom: 1px solid #ddd !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+                z-index: 999 !important;
+                padding: 8px !important;
+            }
+
+            body[data-sff-mobile].sff-nav-expanded .global-nav li {
+                display: block !important;
+                padding: 8px 12px !important;
+            }
+
+            body[data-sff-mobile].sff-nav-expanded .upload-menu {
+                display: block !important;
             }
 
             /* ---- Kudos/comments section ---- */
             body[data-sff-mobile] .give-kudos,
             body[data-sff-mobile] .kudos-comments {
                 flex-wrap: wrap !important;
+                margin-top: 2px !important;
+                margin-bottom: 4px !important;
             }
 
-            /* ==== COMPACT MOBILE LAYOUT ==== */
+            /* ---- Hide footer on mobile ---- */
+            body[data-sff-mobile] .footer-promos,
+            body[data-sff-mobile] .footer-global {
+                display: none !important;
+            }
+
+            /* ---- Secondary nav: boost z-index on mobile ---- */
+            body[data-sff-mobile] .sff-secondary-nav {
+                z-index: 1000 !important;
+            }
+
+            /* ---- Fix mobile layout centering and spacing ---- */
+            body[data-sff-mobile] html,
+            body[data-sff-mobile] body {
+                overflow-x: hidden !important;
+                min-width: 0 !important;
+                width: 100% !important;
+                max-width: 100vw !important;
+                position: relative !important;
+            }
+
+            /* Prevent any child elements from causing horizontal overflow */
+            body[data-sff-mobile] * {
+                max-width: 100% !important;
+            }
+
+            /* Allow specific elements to scroll horizontally if needed */
+            body[data-sff-mobile] #elevation-profile,
+            body[data-sff-mobile] table.segments,
+            body[data-sff-mobile] table.unstyled,
+            body[data-sff-mobile] .leaderboard,
+            body[data-sff-mobile] .comparison-chart,
+            body[data-sff-mobile] .effort-compare {
+                max-width: 100vw !important;
+            }
+
+            body[data-sff-mobile] .page.container {
+                margin: 0 auto !important;
+                padding: 0 8px !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            body[data-sff-mobile] .view,
+            body[data-sff-mobile] #view {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* Remove unwanted borders and grid lines */
+            body[data-sff-mobile] .row {
+                border: none !important;
+                outline: none !important;
+                box-shadow: none !important;
+            }
+
+            body[data-sff-mobile] [class*="spans"] {
+                border: none !important;
+                outline: none !important;
+                box-shadow: none !important;
+            }
+
+            /* Ensure proper centering */
+            body[data-sff-mobile] .text-center {
+                text-align: center !important;
+            }
 
             /* ---- Reduce global vertical spacing ---- */
             body[data-sff-mobile] section,
@@ -7418,202 +7875,8 @@ function getSettingsIconUrl(theme) {
                 padding-bottom: 4px !important;
             }
 
-            /* ---- Compact header: smaller avatar, tighter layout ---- */
-            body[data-sff-mobile] .details-container .avatar {
-                width: 36px !important;
-                height: 36px !important;
-            }
-
-            body[data-sff-mobile] .details-container .avatar img {
-                width: 36px !important;
-                height: 36px !important;
-            }
-
-            body[data-sff-mobile] .details-container {
-                gap: 8px !important;
-                margin-bottom: 4px !important;
-            }
-
-            /* ---- Compact activity name ---- */
-            body[data-sff-mobile] h1.activity-name,
-            body[data-sff-mobile] .activity-name {
-                font-size: 1.1rem !important;
-                margin-bottom: 2px !important;
-                line-height: 1.3 !important;
-            }
-
-            /* ---- Compact heading section ---- */
-            body[data-sff-mobile] section#heading {
-                padding-top: 4px !important;
-                padding-bottom: 4px !important;
-                margin-bottom: 0 !important;
-            }
-
-            body[data-sff-mobile] section#heading header {
-                margin-bottom: 4px !important;
-            }
-
-            /* ---- Compact inline stats (Distance, Time, Elevation) ---- */
-            body[data-sff-mobile] ul.inline-stats {
-                margin-top: 4px !important;
-                margin-bottom: 4px !important;
-                gap: 4px !important;
-            }
-
-            body[data-sff-mobile] ul.inline-stats li {
-                min-width: 60px !important;
-                padding: 2px 4px !important;
-            }
-
-            body[data-sff-mobile] ul.inline-stats li strong {
-                font-size: 1.4rem !important;
-            }
-
-            body[data-sff-mobile] ul.inline-stats li .stat-subtext,
-            body[data-sff-mobile] ul.inline-stats li .unit {
-                font-size: 0.7rem !important;
-            }
-
-            /* ---- Compact secondary stats row ---- */
-            body[data-sff-mobile] .secondary-stats {
-                margin-top: 2px !important;
-                margin-bottom: 4px !important;
-                gap: 4px !important;
-            }
-
-            /* ---- Tighter more-stats / Avg-Max table ---- */
-            body[data-sff-mobile] .more-stats {
-                margin-top: 4px !important;
-                margin-bottom: 4px !important;
-            }
-
-            body[data-sff-mobile] .more-stats table td,
-            body[data-sff-mobile] .more-stats table th {
-                padding: 2px 6px !important;
-                font-size: 0.8rem !important;
-            }
-
-            /* ---- Compact device info ---- */
-            body[data-sff-mobile] .device-info,
-            body[data-sff-mobile] .gear-name {
-                font-size: 0.75rem !important;
-                margin-top: 2px !important;
-                margin-bottom: 2px !important;
-            }
-
-            /* ---- Compact weather ---- */
-            body[data-sff-mobile] .section.weather {
-                gap: 4px !important;
-                padding: 4px 0 !important;
-            }
-
-            body[data-sff-mobile] .weather-stats {
-                gap: 4px 8px !important;
-                font-size: 0.8rem !important;
-            }
-
-            /* ---- Compact map ---- */
-            body[data-sff-mobile] #map-canvas,
-            body[data-sff-mobile] .activity-map,
-            body[data-sff-mobile] .mapboxgl-map,
-            body[data-sff-mobile] [data-testid="activity-map"],
-            body[data-sff-mobile] #overview-map {
-                height: 250px !important;
-                min-height: 180px !important;
-                margin-top: 4px !important;
-                margin-bottom: 4px !important;
-            }
-
-            /* ---- Compact elevation chart ---- */
-            body[data-sff-mobile] #elevation-chart,
-            body[data-sff-mobile] .chart-container,
-            body[data-sff-mobile] #chart-container {
-                margin-top: 2px !important;
-                margin-bottom: 4px !important;
-            }
-
-            /* ---- Compact segments ---- */
-            body[data-sff-mobile] .segments-list,
-            body[data-sff-mobile] table.segments {
-                font-size: 0.75rem !important;
-            }
-
-            body[data-sff-mobile] table.segments td,
-            body[data-sff-mobile] table.segments th {
-                padding: 3px 4px !important;
-            }
-
-            /* ---- Reduce padding on activity-summary sections ---- */
-            body[data-sff-mobile] .activity-summary-container .spans8,
-            body[data-sff-mobile] .activity-summary-container .spans4 {
-                padding-top: 0 !important;
-                padding-bottom: 0 !important;
-            }
-
-            /* ---- Compact comments/social section ---- */
-            body[data-sff-mobile] .comments,
-            body[data-sff-mobile] .social {
-                margin-top: 4px !important;
-                margin-bottom: 4px !important;
-            }
-
-            /* ---- Reduce top-level page padding ---- */
-            body[data-sff-mobile] div.page.container {
-                padding-left: 6px !important;
-                padding-right: 6px !important;
-            }
-
-            /* ---- Compact global header ---- */
-            body[data-sff-mobile] #global-header {
-                padding-top: 0 !important;
-                padding-bottom: 0 !important;
-            }
-
-            body[data-sff-mobile] #global-header .container {
-                padding-left: 6px !important;
-                padding-right: 6px !important;
-            }
-
-            /* ---- Reduce row margins ---- */
-            body[data-sff-mobile] .row {
-                margin-bottom: 4px !important;
-            }
-
-            /* ---- Compact kudos/give-kudos bar ---- */
-            body[data-sff-mobile] .give-kudos,
-            body[data-sff-mobile] .kudos-comments {
-                margin-top: 2px !important;
-                margin-bottom: 4px !important;
-                font-size: 0.85rem !important;
-            }
-
-            /* ---- Hide footer sections on activity pages ---- */
-            body[data-sff-mobile] footer.achievements,
-            body[data-sff-mobile] .footer-achievements,
-            body[data-sff-mobile] footer .footer-promos,
-            body[data-sff-mobile] footer .footer-global,
-            body[data-sff-mobile] .footer-promos,
-            body[data-sff-mobile] .footer-global {
-                display: none !important;
-            }
-
-            /* ---- Hide entire footer on mobile activity pages ---- */
-            body[data-sff-mobile] > footer,
-            body[data-sff-mobile] body > footer {
-                display: none !important;
-            }
-
-            /* ---- Secondary nav positioning on activity pages ---- */
-            body[data-sff-mobile] .sff-secondary-nav {
-                margin-top: 0px !important;
-                z-index: 1000 !important;
-            }
-
-            body[data-sff-mobile]:not([data-sff-dashboard="true"]) main,
-            body[data-sff-mobile]:not([data-sff-dashboard="true"]) .view {
-                padding-top: 50px !important;
-            }
-        `);
+                    `);
+        console.log('[SFF-DEBUG] Mobile CSS injected via GM_addStyle, element exists:', !!mobileStyleEl, 'in DOM:', document.contains(mobileStyleEl));
     }
 
     // Store original viewport content so we can restore it
@@ -7625,6 +7888,8 @@ function getSettingsIconUrl(theme) {
             mobileStyleEl = null;
         }
         document.body.removeAttribute(SFF_MOBILE_ATTR);
+        document.documentElement.classList.remove('mobile');
+        document.body.classList.remove('mobile');
         // Remove inline styles we may have set
         document.querySelectorAll('[data-sff-mobile-inline]').forEach(el => {
             el.style.cssText = '';
@@ -7705,43 +7970,7 @@ function getSettingsIconUrl(theme) {
             }
         });
 
-        // Header spacing normalization for mobile pages where top padding can
-        // introduce a tiny drag range.
-        const globalHeader = document.querySelector('#global-header');
-        if (globalHeader) {
-            const headerH = Math.max(0, Math.round(globalHeader.getBoundingClientRect().height || globalHeader.offsetHeight || 0));
-            const topOffset = headerH > 0 ? `${headerH}px` : '0px';
-            globalHeader.style.setProperty('position', 'fixed', 'important');
-            globalHeader.style.setProperty('top', '0', 'important');
-            globalHeader.style.setProperty('left', '0', 'important');
-            globalHeader.style.setProperty('right', '0', 'important');
-            globalHeader.style.setProperty('margin-top', '0', 'important');
-            globalHeader.style.setProperty('padding-top', '0', 'important');
-
-            // If any ancestor of the header has a transform/perspective/filter,
-            // it can create a containing block that causes a fixed header to
-            // scroll with the page. Neutralize those so the header truly pins
-            // to the viewport.
-            let ancestor = globalHeader.parentElement;
-            while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
-                const cs = getComputedStyle(ancestor);
-                if (cs && cs.transform && cs.transform !== 'none') {
-                    ancestor.style.setProperty('transform', 'none', 'important');
-                }
-                if (cs && cs.perspective && cs.perspective !== 'none') {
-                    ancestor.style.setProperty('perspective', 'none', 'important');
-                }
-                if (cs && cs.filter && cs.filter !== 'none') {
-                    ancestor.style.setProperty('filter', 'none', 'important');
-                }
-                ancestor = ancestor.parentElement;
-            }
-
-            if (body) {
-                body.style.setProperty('margin-top', topOffset, 'important');
-                body.style.setProperty('padding-top', '0', 'important');
-            }
-        }
+        // Simplified overflow handling - don't touch header positioning
 
         window.__sffTinyClampActive = clampActive;
     }
@@ -7803,6 +8032,8 @@ function getSettingsIconUrl(theme) {
         if (!isMobile) {
             // Remove inline overrides at desktop widths
             document.body.removeAttribute(SFF_MOBILE_ATTR);
+            document.documentElement.classList.remove('mobile');
+            document.body.classList.remove('mobile');
             document.querySelectorAll('[data-sff-mobile-inline]').forEach(el => {
                 el.style.cssText = '';
                 el.removeAttribute('data-sff-mobile-inline');
@@ -7814,18 +8045,34 @@ function getSettingsIconUrl(theme) {
         // Ensure the attribute is on body so CSS rules also fire
         document.body.setAttribute(SFF_MOBILE_ATTR, '1');
 
+        // Add 'mobile' class to html and body — this triggers Strava's own
+        // built-in mobile CSS (hamburger menu, compact header, responsive tables).
+        // This is the same technique Sauce for Strava uses.
+        document.documentElement.classList.add('mobile');
+        document.body.classList.add('mobile');
+
+        // Wire up hamburger menu expander click (one-time setup)
+        const menuExpander = document.querySelector('.menu-expander');
+        if (menuExpander && !menuExpander.__sffWired) {
+            menuExpander.__sffWired = true;
+            menuExpander.addEventListener('click', () => {
+                document.body.classList.toggle('sff-nav-expanded');
+            });
+        }
+
         // Override Strava's viewport meta tag to allow true mobile-width rendering.
         // Without this, the page renders at ~1248px and the browser just zooms out.
+        // maximum-scale and user-scalable prevent zoom and ensure page starts fully zoomed out.
         let vpMeta = document.querySelector('meta[name="viewport"]');
         if (vpMeta) {
             if (sffOriginalViewport === null) {
                 sffOriginalViewport = vpMeta.getAttribute('content');
             }
-            vpMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=1.0');
+            vpMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no');
         } else {
             vpMeta = document.createElement('meta');
             vpMeta.name = 'viewport';
-            vpMeta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0';
+            vpMeta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no';
             document.head.appendChild(vpMeta);
         }
 
@@ -7837,170 +8084,43 @@ function getSettingsIconUrl(theme) {
         document.body.style.setProperty('width', '100%', 'important');
         document.body.style.setProperty('overflow-x', 'hidden', 'important');
 
-        const setInline = (el, css) => {
+        // ======== TARGETED INLINE OVERRIDES ========
+        // Only override things that Strava sets with inline styles or that
+        // our CSS rules cannot reach. The injected CSS handles the rest.
+
+        const setInline = (el, props) => {
             if (!el) return;
             el.setAttribute('data-sff-mobile-inline', '1');
-            // Use setProperty for each rule to properly override existing inline styles
-            css.split(';').forEach(rule => {
-                rule = rule.trim();
-                if (!rule) return;
-                const imp = rule.includes('!important');
-                rule = rule.replace('!important', '').trim();
-                const colonIdx = rule.indexOf(':');
-                if (colonIdx < 0) return;
-                const prop = rule.substring(0, colonIdx).trim();
-                const val = rule.substring(colonIdx + 1).trim();
-                if (prop && val) {
-                    el.style.setProperty(prop, val, imp ? 'important' : '');
-                }
+            Object.entries(props).forEach(([prop, val]) => {
+                el.style.setProperty(prop, val, 'important');
             });
         };
 
-        const setInlineAll = (selector, css) => {
-            document.querySelectorAll(selector).forEach(el => setInline(el, css));
-        };
+        // Strava sets inline min-width on .page.container
+        const pageContainer = document.querySelector('.page.container');
+        if (pageContainer) {
+            setInline(pageContainer, {
+                'width': '100%',
+                'max-width': '100vw',
+                'min-width': '0',
+                'padding-left': '8px',
+                'padding-right': '8px',
+                'box-sizing': 'border-box',
+                'overflow-x': 'hidden'
+            });
+        }
 
-        // ======== NUCLEAR DOM WALK ========
-        // Walk every element in the page and force anything wider than viewport to shrink.
-        // Also kill all floats and fixed widths inside the main content area.
-        const vw = window.innerWidth || 375;
-        const walkAndFix = (root) => {
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-            let node;
-            while (node = walker.nextNode()) {
-                // Skip SFF's own elements and script/style tags
-                if (node.classList && (node.classList.contains('sff-secondary-nav') || node.classList.contains('sff-clean-panel'))) continue;
-                if (node.tagName === 'SCRIPT' || node.tagName === 'STYLE' || node.tagName === 'LINK' || node.tagName === 'SVG' || node.tagName === 'path') continue;
+        // Strava sets inline min-height on .page.container — keep it but cap width
+        const viewEl = document.querySelector('div.view') || document.querySelector('div#view');
+        if (viewEl) {
+            setInline(viewEl, {
+                'overflow-x': 'hidden',
+                'width': '100%',
+                'min-width': '0'
+            });
+        }
 
-                const cs = getComputedStyle(node);
-
-                // Force any element wider than viewport to shrink
-                const computedW = parseFloat(cs.width);
-                if (computedW > vw) {
-                    node.style.setProperty('width', '100%', 'important');
-                    node.style.setProperty('max-width', '100%', 'important');
-                    node.style.setProperty('min-width', '0', 'important');
-                    node.setAttribute('data-sff-mobile-inline', '1');
-                }
-
-                // Kill floats
-                if (cs.float !== 'none') {
-                    node.style.setProperty('float', 'none', 'important');
-                    node.setAttribute('data-sff-mobile-inline', '1');
-                }
-
-                // Kill min-width that's wider than viewport
-                const computedMinW = parseFloat(cs.minWidth);
-                if (computedMinW > vw) {
-                    node.style.setProperty('min-width', '0', 'important');
-                    node.setAttribute('data-sff-mobile-inline', '1');
-                }
-
-                // Kill negative margins (Strava grid uses margin-left: -10px etc)
-                const ml = parseFloat(cs.marginLeft);
-                if (ml < 0) {
-                    node.style.setProperty('margin-left', '0', 'important');
-                    node.setAttribute('data-sff-mobile-inline', '1');
-                }
-            }
-        };
-
-        // Walk from the view container or body
-        const walkRoot = document.querySelector('div.view') || document.querySelector('#view') || document.body;
-        walkAndFix(walkRoot);
-
-        // Also fix the global header
-        const globalHeader = document.querySelector('#global-header');
-        if (globalHeader) walkAndFix(globalHeader);
-
-        // ======== TARGETED OVERRIDES ========
-
-        // Page container — compact padding
-        setInline(document.querySelector('.page.container'),
-            'width:100%!important;max-width:100vw!important;min-width:0!important;padding:0 8px!important;box-sizing:border-box!important;overflow-x:hidden!important;');
-
-        // Sidenav — hide
-        setInlineAll('nav.sidenav, .sidenav',
-            'display:none!important;width:0!important;min-width:0!important;');
-
-        // View container
-        setInlineAll('div.view, div#view',
-            'overflow-x:hidden!important;width:100%!important;min-width:0!important;margin-top:0!important;');
-
-        // Global header — compact
-        setInline(document.querySelector('#global-header'),
-            'padding:0!important;');
-        setInlineAll('#global-header .container, #global-header nav.nav-bar',
-            'width:100%!important;max-width:100%!important;padding:0 6px!important;');
-
-        // ---- COMPACT SPACING ----
-        setInlineAll('section, .section',
-            'margin-bottom:4px!important;padding-top:2px!important;padding-bottom:2px!important;');
-
-        setInlineAll('.row',
-            'margin-bottom:2px!important;display:flex!important;flex-direction:column!important;width:100%!important;');
-
-        // Inline stats
-        setInlineAll('ul.inline-stats',
-            'margin:4px 0!important;padding:0!important;gap:2px!important;display:flex!important;flex-wrap:wrap!important;');
-
-        // More-stats
-        setInlineAll('.more-stats, .secondary-stats, .extra-stats',
-            'margin:2px 0!important;padding:0!important;');
-
-        // Details container (avatar + name)
-        setInline(document.querySelector('.details-container'),
-            'margin-bottom:2px!important;gap:6px!important;display:flex!important;flex-direction:row!important;align-items:flex-start!important;');
-
-        // Avatar — smaller
-        setInlineAll('.details-container .avatar, .details-container .avatar img',
-            'width:36px!important;height:36px!important;');
-
-        // Activity name
-        setInlineAll('h1.activity-name, .activity-name, [data-testid="activity_name"]',
-            'font-size:1rem!important;margin:0 0 2px 0!important;line-height:1.2!important;');
-
-        // Kudos/comments bar
-        setInlineAll('.give-kudos, .kudos-comments, .social, .comments',
-            'margin:2px 0!important;padding:2px 0!important;');
-
-        // Weather
-        setInlineAll('.section.weather, .weather-stats',
-            'margin:2px 0!important;padding:2px 0!important;gap:4px!important;');
-
-        // Device/gear
-        setInlineAll('.device-info, .gear-name',
-            'margin:1px 0!important;font-size:0.75rem!important;');
-
-        // Map
-        setInlineAll('#map-canvas, .activity-map, .mapboxgl-map, [data-testid="activity-map"], #overview-map',
-            'margin:4px 0!important;width:100%!important;');
-
-        // Elevation
-        setInlineAll('#elevation-chart, .chart-container, #chart-container, #elevation-profile',
-            'margin:2px 0!important;width:100%!important;');
-
-        // Spinners
-        setInlineAll('.elev-chart-large.spinner, .spinner.streams-loader',
-            'margin:0!important;padding:0!important;');
-
-        // Heading border
-        setInlineAll('section#heading, #heading',
-            'border-bottom:none!important;');
-
-        // Ride overview
-        setInline(document.querySelector('section#ride-overview'),
-            'border:none!important;margin:0!important;padding:2px 0!important;');
-
-        // Tables
-        setInlineAll('table',
-            'width:100%!important;font-size:0.8rem!important;');
-        setInlineAll('table td, table th',
-            'padding:3px 4px!important;');
-
-        // Log what we fixed
-        const fixedCount = document.querySelectorAll('[data-sff-mobile-inline]').length;
-        console.log('[SFF-DEBUG] Nuclear walk fixed', fixedCount, 'elements. innerWidth:', window.innerWidth, 'outerWidth:', window.outerWidth);
+        console.log('[SFF-DEBUG] Mobile overrides applied. outerWidth:', window.outerWidth, 'innerWidth:', window.innerWidth, 'mobileClass:', document.body.classList.contains('mobile'));
 
         // Strava can introduce a tiny 1-3px vertical overflow on mobile.
         // Clamp only that tiny overflow; keep normal page scrolling intact.
@@ -8027,34 +8147,10 @@ function getSettingsIconUrl(theme) {
         }
         if (UtilsModule.isOnActivityPage()) {
             injectMobileResponsiveCSS();
-            console.log('[SFF-DEBUG] CSS injected, isMobile:', sffIsMobileWidth(), 'outerWidth:', window.outerWidth);
-            if (sffIsMobileWidth()) {
+            const isMobile = sffIsMobileWidth();
+            console.log('[SFF-DEBUG] CSS injected, isMobile:', isMobile, 'outerWidth:', window.outerWidth, 'innerWidth:', window.innerWidth, 'breakpoint:', SFF_MOBILE_BREAKPOINT);
+            if (isMobile) {
                 applyMobileInlineOverrides(true);
-                // Deep DOM dump to discover actual Strava selectors
-                const dumpTree = (parent, depth) => {
-                    if (depth > 6) return;
-                    Array.from(parent.children).forEach(child => {
-                        const cs = getComputedStyle(child);
-                        const tag = child.tagName.toLowerCase();
-                        const cls = child.className ? ('.' + (typeof child.className === 'string' ? child.className.trim().replace(/\s+/g, '.') : '')) : '';
-                        const id = child.id ? ('#' + child.id) : '';
-                        const w = cs.width, mw = cs.minWidth, fl = cs.float, d = cs.display, pos = cs.position;
-                        const mt = cs.marginTop, ml = cs.marginLeft;
-                        const hasSff = child.hasAttribute('data-sff-mobile-inline') ? ' [SFF]' : '';
-                        const indent = '  '.repeat(depth);
-                        console.log(`[SFF-DOM] ${indent}<${tag}${id}${cls}> w:${w} minW:${mw} float:${fl} disp:${d} pos:${pos} mt:${mt} ml:${ml}${hasSff}`);
-                        dumpTree(child, depth + 1);
-                    });
-                };
-                // Dump from body > .view or body > div.view
-                const viewEl = document.querySelector('div.view') || document.querySelector('#view') || document.querySelector('.page.container');
-                if (viewEl) {
-                    console.log('[SFF-DOM] === FULL PAGE TREE (from ' + viewEl.tagName + '#' + (viewEl.id||'') + '.' + (viewEl.className||'') + ') ===');
-                    dumpTree(viewEl, 0);
-                } else {
-                    console.log('[SFF-DOM] === FULL BODY TREE ===');
-                    dumpTree(document.body, 0);
-                }
             }
             // Re-apply on resize using outerWidth
             if (!window.__sffResizeHandler) {
@@ -8162,6 +8258,8 @@ function getSettingsIconUrl(theme) {
         LogicModule.updateRouvyVisibility();
         LogicModule.updateJoinWorkoutVisibility();
         LogicModule.updateCoachCatVisibility();
+        LogicModule.updateXertVisibility();
+        LogicModule.updateCyqlVisibility();
 
         // Apply mobile responsive layout on activity pages
         applyMobileResponsive();
@@ -8185,8 +8283,11 @@ function getSettingsIconUrl(theme) {
             LogicModule.updateBandokVisibility();
             LogicModule.updateCorosVisibility();
             LogicModule.updateRouvyVisibility();
+            LogicModule.updateZwiftRouteVisibility();
             LogicModule.updateJoinWorkoutVisibility();
             LogicModule.updateCoachCatVisibility();
+            LogicModule.updateXertVisibility();
+            LogicModule.updateCyqlVisibility();
         });
         observer.observe(document.body, { childList: true, subtree: true });
 
@@ -8233,6 +8334,21 @@ function getSettingsIconUrl(theme) {
                 settings = { ...DEFAULTS };
             }
         }
+
+        // Fix viewport for mobile devices - applies to ALL pages including dashboard
+        // This prevents zoom issues and horizontal scroll on mobile screens
+        const fixViewportForMobile = () => {
+            let vpMeta = document.querySelector('meta[name="viewport"]');
+            if (vpMeta) {
+                vpMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            } else {
+                vpMeta = document.createElement('meta');
+                vpMeta.name = 'viewport';
+                vpMeta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no';
+                document.head.appendChild(vpMeta);
+            }
+        };
+        fixViewportForMobile();
 
         // Always setup global features on all pages
         setupGlobalFeatures();
