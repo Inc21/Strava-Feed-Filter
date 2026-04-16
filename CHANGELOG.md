@@ -1,9 +1,14 @@
 # Changelog
 
-## [v2.6.2] - 06.04.2026 (Firefox & Chrome Extensions)
+## [v2.7.0] - 16.04.2026 (Firefox & Chrome Extensions)
 
-### v2.6.2 New Features
+### v2.7.0 New Features
 
+- **Custom Embed Filters**
+  - Added a "Custom Embeds (comma-separated)" textarea at the bottom of the 3rd Party Embeds dropdown.
+  - Filters apply in real-time as you type (no save & refresh required). Patterns are matched case-insensitively against activity description paragraphs.
+  - Minimum 3 characters per token before a filter is applied.
+  - Placeholder uses recognisable embed examples: "e.g. Wandrer, JOIN workout".
 - **In-Panel Update Notification Banner**
   - Both Chrome and Firefox extensions now read their installed version from the manifest and compare it against a remote `version.json` hosted on GitHub.
   - When a newer version is available, a compact banner appears inside the filter panel with "Update Extension" and "View Changelog" buttons plus a square red dismiss [×] that matches the existing UI.
@@ -20,8 +25,12 @@
 - **Share Button**
   - Shortened "Share extension" to "Share" and prevented text wrapping on narrow panels.
 
-### v2.6.2 Improvements
+### v2.7.0 Improvements
 
+- **Recording Devices — Custom Device Field**
+  - Custom device input now applies in real-time as you type (minimum 3 characters per token), no longer requires clicking Apply & Refresh.
+  - Fixed partial device name matching: typing "ELEMNT" or "ROAM" now correctly matches devices like "Wahoo ELEMNT ROAM" by searching the full activity text rather than just the extracted brand name.
+- **Removed "Requires save and refresh" warnings** from the Recording Devices and Custom Embeds sections since both now apply immediately.
 - Added Firefox-specific metadata for update parity with Chrome.
 - Introduced FORCE toggle for local testing (disabled in production) and ensured dismiss clicks don't close the panel.
 

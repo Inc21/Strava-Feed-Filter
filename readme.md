@@ -4,7 +4,9 @@ A powerful Chrome Extension and Firefox Extension that provides advanced filteri
 capabilities for your Strava activity feed. Built with a modular architecture
 for maximum performance and maintainability.
 
-> Note: As of v1.2.4, this project includes Firefox Extension (desktop and Android). As of v2.2.5, Chrome Extension with complete feature parity is also available. As of v2.3.1, a Safari iOS–compatible userscript (`userscript/sff-safari.user.js`) is available. In v2.3.2 we refreshed activity-type detection across every platform so specialised activities and group posts filter correctly. **As of v2.4.5, both Firefox and Chrome extensions feature enhanced mobile support with notification system and bidirectional panel resizing. As of v2.5.0, both extensions include a compact settings panel with info icons and device-based activity filtering.** The userscript remains available for all browsers.
+> Note: As of v1.2.4, this project includes Firefox Extension (desktop and Android). As of v2.2.5, Chrome Extension with complete feature parity is also available. **As of v2.4.5, both Firefox and Chrome extensions feature enhanced mobile support with notification system and bidirectional panel resizing. As of v2.5.0, both extensions include a compact settings panel with info icons and device-based activity filtering.**
+>
+> ⚠️ **Userscripts are deprecated** and will no longer receive updates or new features. Please use the Chrome or Firefox extension instead. iPhone/iPad users can get the full extension experience via the [Orion Browser](https://orionbrowser.com/) — see [ios-safari-install.md](./ios-safari-install.md).
 
 ![Strava Feed Filter in action](./src/readme-images/filter-panel-overview.png)
 *Filter panel*
@@ -19,7 +21,8 @@ with Strava's design.
 
 ## 🆕 What's New
 
-- **Latest: v2.6.2** — ✨ **Update notifications & UI improvements!** In-panel update notification banner with version checking. Keyword preset buttons for Warm Up and Cool Down. Compact header buttons option for a cleaner interface. Improved dark mode support and panel usability.
+- **Latest: v2.7.0** — ✨ **Custom embed & device filtering improvements!** New custom embed filters field in 3rd Party Embeds section with real-time matching. Custom recording device field now also applies in real-time. Fixed partial device name matching (e.g. "ELEMNT" now matches "Wahoo ELEMNT ROAM").
+- **v2.6.2** — ✨ **Update notifications & UI improvements!** In-panel update notification banner with version checking. Keyword preset buttons for Warm Up and Cool Down. Compact header buttons option for a cleaner interface. Improved dark mode support and panel usability.
 - **v2.5.0** — ✨ **Major UI & filtering improvements!** Compact settings panel with clickable info icons replacing verbose helper text. New device-based filtering with support for 21+ predefined devices (Zwift, Garmin, Wahoo, etc.) plus custom device field. Full support for group activities with improved device detection prioritizing metadata over user-editable names.
 - **v2.4.7** — 🐛 **Bug fixes & enhancements!** Fixed extension message listener for proper popup communication. Added "See what's new" link to extension popups linking to GitHub changelog.
 - **v2.4.6** — 🐛 **Bug fixes!** Fixed notification badge not clearing when viewing notifications - now properly marks all as read using Strava's API with CSRF authentication. Fixed badge color (now red instead of orange) and improved positioning in Chrome. Added missing "Hide Start Trial" functionality for Strava free users without premium subscriptions (bug reported by Reddit user: andreasbeer1981).
@@ -139,20 +142,20 @@ Choose the option that fits your browser/platform.
 
 - Install from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/strava-feed-filter/)
 
-### Userscript (Desktop Browsers)
+### Userscript (Desktop Browsers) — ⚠️ DEPRECATED
 
-- Install from [Greasy Fork](https://greasyfork.org/en/scripts/550272-strava-feed-filter)
-- Or install from [GitHub Raw](https://raw.githubusercontent.com/Inc21/Tempermonkey-Strava-Feed-Filter/main/userscript/strava-feed-filter-clean.js)
-- Manual installation: Download `userscript/strava-feed-filter-clean.js` and install via your userscript manager.
+> **Userscripts are no longer maintained.** They will not receive new features or bug fixes and will be removed in a future release. Please switch to the Chrome or Firefox extension above for the full experience.
+
+- ~~Install from [Greasy Fork](https://greasyfork.org/en/scripts/550272-strava-feed-filter)~~
+- ~~Manual installation: Download `userscript/strava-feed-filter-clean.js` and install via your userscript manager.~~
 
 ### Orion Browser (iOS & iPadOS)
 
 - ▶️ Follow the dedicated Orion setup guide: [ios-safari-install.md](https://github.com/Inc21/Tempermonkey-Strava-Feed-Filter/blob/main/ios-safari-install.md)
 - Install Orion from the [App Store](https://apps.apple.com/app/orion-browser-by-kagi/id1484498200) or TestFlight, enable extensions, then add SFF from the [Chrome Web Store](https://chromewebstore.google.com/detail/geihkfcdimdmlckcgkebcdajdlmeppff) or [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/strava-feed-filter/).
 - Full desktop extension feature set (dark mode, notification bell, update banner) now works on iPhone/iPad via Orion.
-- Legacy userscript `userscript/sff-safari.user.js` is **deprecated** and will be removed once Orion coverage is stable.
 
-**Disclaimer:** While this userscript is designed to work on multiple browsers, it has been primarily tested on Chrome, Firefox, and Safari. Support for other browsers may vary.
+**Disclaimer:** This extension has been primarily tested on Chrome, Firefox, and Orion (iOS). Support for other browsers may vary.
 
 ## 📖 Usage Guide
 

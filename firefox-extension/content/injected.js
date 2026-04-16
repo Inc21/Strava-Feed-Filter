@@ -104,6 +104,7 @@ function getSettingsIconUrl(theme) {
         types: {},
         recordingDevices: [],
         recordingDevicesCustom: "",
+        hideAllDevices: false,
         hideNoMap: false,
         hideGiveGift: true,
         hideStartTrial: true,
@@ -120,9 +121,9 @@ function getSettingsIconUrl(theme) {
         hideCoros: false,
         hideRouvy: false,
         hideZwiftRoute: false,
-        hideJoinWorkout: false,
-        hideCoachCat: false,
+        hideRestortrain: false,
         hideAthleteJoinedClub: false,
+        customEmbedFilters: "",
         hideFooter: false,
         showKudosButton: true,
         showSeeMoreButton: true,
@@ -3661,9 +3662,12 @@ function getSettingsIconUrl(theme) {
                             </div>
                         </div>
                         <div class="sff-dropdown-content">
-                            <div class="sff-devices-actions">
-                                <button type="button" class="sff-devices-select" data-action="select-all">Select All</button>
-                                <button type="button" class="sff-devices-select" data-action="clear-all">Clear All</button>
+                            <p class="sff-dropdown-description">Hide activities recorded with specific devices</p>
+                            <div class="sff-embeds-controls">
+                                <label class="sff-chip sff-devices-hide-all ${settings.hideAllDevices ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideAllDevices" ${settings.hideAllDevices ? 'checked' : ''}>
+                                    Hide All Devices
+                                </label>
                             </div>
                             <div class="sff-devices">
                                 ${['Apple', 'Bryton', 'COROS', 'Elite', 'Fitbit', 'Garmin', 'Hammerhead', 'MyWhoosh', 'Peloton', 'Polar', 'Rouvy', 'Samsung', 'Stages', 'Strava', 'Suunto', 'Tacx', 'TrainerRoad', 'Wahoo', 'Wahoo SYSTM', 'Whoop', 'Zwift'].map(device => `
@@ -3687,6 +3691,7 @@ function getSettingsIconUrl(theme) {
                             </div>
                         </div>
                         <div class="sff-dropdown-content">
+                            <p class="sff-dropdown-description" style="color: #fc5200; font-style: italic;">⚠️ Requires save and refresh to apply changes</p>
                             <div class="sff-row">
                                 <label class="sff-label">Unit System</label>
                                 <div class="sff-unit-toggle">
@@ -3788,6 +3793,19 @@ function getSettingsIconUrl(theme) {
                                     <input type="checkbox" class="sff-hideCyql" ${settings.hideCyql ? 'checked' : ''}>
                                     Cyql
                                 </label>
+                                <label class="sff-chip ${settings.hideEviso ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideEviso" ${settings.hideEviso ? 'checked' : ''}>
+                                    eVISO
+                                </label>
+                                <label class="sff-chip ${settings.hideRestortrain ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideRestortrain" ${settings.hideRestortrain ? 'checked' : ''}>
+                                    Restortrain
+                                </label>
+                            </div>
+                            <div class="sff-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                                <label class="sff-label">Custom Embeds (comma-separated):</label>
+                                <textarea class="sff-input sff-customEmbedFilters" placeholder="e.g. Wandrer, JOIN workout" style="width: 100%; min-height: 60px; resize: vertical; font-family: inherit; padding: 6px;">${settings.customEmbedFilters}</textarea>
+                                <p style="font-size: 11px; color: #666; margin: 4px 0 0 0; font-style: italic;">Enter text patterns to hide from activity descriptions</p>
                             </div>
                         </div>
                     </div>
@@ -4228,7 +4246,7 @@ function getSettingsIconUrl(theme) {
             }
 
             // Real-time text input updates for immediate effect
-            const textInputs = panel.querySelectorAll('.sff-keywords, .sff-devices-custom, .sff-allowed-athletes, .sff-ignored-athletes, .sff-minKm, .sff-maxKm, .sff-minMins, .sff-maxMins, .sff-minElevM, .sff-maxElevM');
+            const textInputs = panel.querySelectorAll('.sff-keywords, .sff-allowed-athletes, .sff-ignored-athletes, .sff-minKm, .sff-maxKm, .sff-minMins, .sff-maxMins, .sff-minElevM, .sff-maxElevM');
             textInputs.forEach(input => {
                 // For textarea and number inputs, update on blur (when user leaves the field)
                 input.addEventListener('blur', () => {
@@ -4248,6 +4266,22 @@ function getSettingsIconUrl(theme) {
                     });
                 }
             });
+
+            // Real-time custom devices input (min 3 chars per token)
+            const devicesCustomInput = panel.querySelector('.sff-devices-custom');
+            if (devicesCustomInput) {
+                devicesCustomInput.addEventListener('input', () => {
+                    const tokens = devicesCustomInput.value.split(',').map(t => t.trim()).filter(t => t.length >= 3);
+                    settings.recordingDevicesCustom = tokens.join(', ');
+                    UtilsModule.saveSettings(settings);
+                    LogicModule.filterActivities();
+                });
+                devicesCustomInput.addEventListener('blur', () => {
+                    UIModule.applySettings(panel);
+                    UtilsModule.saveSettings(settings);
+                    LogicModule.filterActivities();
+                });
+            }
 
             // Real-time pace input updates
             paceInputs.forEach(input => {
@@ -4610,6 +4644,22 @@ function getSettingsIconUrl(theme) {
                         LogicModule.filterActivities();
                     }
 
+                    // Recording devices - Hide All
+                    if (e.target.classList.contains('sff-hideAllDevices')) {
+                        const isChecked = e.target.checked;
+                        settings.hideAllDevices = isChecked;
+                        const allDevices = ['Apple', 'Bryton', 'COROS', 'Elite', 'Fitbit', 'Garmin', 'Hammerhead', 'MyWhoosh', 'Peloton', 'Polar', 'Rouvy', 'Samsung', 'Stages', 'Strava', 'Suunto', 'Tacx', 'TrainerRoad', 'Wahoo', 'Wahoo SYSTM', 'Whoop', 'Zwift'];
+                        settings.recordingDevices = isChecked ? [...allDevices] : [];
+                        const chip = e.target.closest('.sff-chip');
+                        if (chip) chip.classList.toggle('checked', isChecked);
+                        panel.querySelectorAll('.sff-devices input[type="checkbox"][data-device]').forEach(cb => {
+                            cb.checked = isChecked;
+                            cb.closest('.sff-chip')?.classList.toggle('checked', isChecked);
+                        });
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.filterActivities();
+                    }
+
                     // External embeds - Hide All
                     if (e.target.classList.contains('sff-hideAllEmbeds')) {
                         const isChecked = e.target.checked;
@@ -4626,6 +4676,8 @@ function getSettingsIconUrl(theme) {
                         settings.hideCoachCat = isChecked;
                         settings.hideXert = isChecked;
                         settings.hideCyql = isChecked;
+                        settings.hideEviso = isChecked;
+                        settings.hideRestortrain = isChecked;
                         UtilsModule.saveSettings(settings);
                         
                         // Update all individual checkboxes
@@ -4648,6 +4700,9 @@ function getSettingsIconUrl(theme) {
                         LogicModule.updateCoachCatVisibility();
                         LogicModule.updateXertVisibility();
                         LogicModule.updateCyqlVisibility();
+                        LogicModule.updateEvisoVisibility();
+                        LogicModule.updateRestortrainVisibility();
+                        LogicModule.updateCustomEmbedVisibility();
                     }
                     
                     // External embeds - Individual
@@ -4705,6 +4760,21 @@ function getSettingsIconUrl(theme) {
                         settings.hideCyql = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateCyqlVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideEviso')) {
+                        settings.hideEviso = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateEvisoVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideRestortrain')) {
+                        settings.hideRestortrain = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateRestortrainVisibility();
+                    }
+                    if (e.target.classList.contains('sff-customEmbedFilters')) {
+                        settings.customEmbedFilters = e.target.value;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateCustomEmbedVisibility();
                     }
                     // Footer
                     if (e.target.classList.contains('sff-hideFooter')) {
@@ -4812,32 +4882,14 @@ function getSettingsIconUrl(theme) {
                 });
             }
 
-            // Recording devices select all/clear all
-            const devicesActions = panel.querySelector('.sff-devices-actions');
-            if (devicesActions) {
-                devicesActions.addEventListener('click', (event) => {
-                    const button = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
-                    if (!button) return;
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    const shouldCheck = button.dataset.action === 'select-all';
-                    const checkboxes = [...panel.querySelectorAll('.sff-devices input[type="checkbox"][data-device]')];
-                    if (!checkboxes.length) {
-                        // No recording device checkboxes found for bulk toggle
-                        return;
-                    }
-
-                    checkboxes.forEach(cb => {
-                        const device = cb.dataset.device;
-                        cb.checked = shouldCheck;
-                        cb.closest('.sff-chip')?.classList.toggle('checked', shouldCheck);
-                    });
-
+            // Textarea input handler for real-time updates
+            panel.addEventListener('input', (e) => {
+                if (e.target.classList.contains('sff-customEmbedFilters')) {
+                    settings.customEmbedFilters = e.target.value;
                     UtilsModule.saveSettings(settings);
-                    LogicModule.filterActivities();
-                });
-            }
+                    LogicModule.updateCustomEmbedVisibility();
+                }
+            });
 
             // Info icon click handler
             panel.addEventListener('click', (event) => {
@@ -5268,6 +5320,26 @@ function getSettingsIconUrl(theme) {
             }
         },
 
+        // Helper to manage read more button visibility when hiding embed paragraphs
+        manageReadMoreButton(descriptionWrapper, shouldHide) {
+            try {
+                const readMoreBtn = descriptionWrapper.parentElement?.querySelector('[data-testid="activity_description_read_more"]');
+                if (!readMoreBtn) return;
+
+                if (shouldHide) {
+                    if (readMoreBtn.dataset.sffHiddenBy !== 'sff') {
+                        readMoreBtn.dataset.sffHiddenBy = 'sff';
+                        readMoreBtn.style.display = 'none';
+                    }
+                } else if (readMoreBtn.dataset.sffHiddenBy === 'sff') {
+                    readMoreBtn.style.display = '';
+                    delete readMoreBtn.dataset.sffHiddenBy;
+                }
+            } catch (e) {
+                // manageReadMoreButton error
+            }
+        },
+
         // Determine if a feed node is a club post
         isClubPost(node) {
             if (!node) return false;
@@ -5470,10 +5542,12 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         if (text.includes('-- myWindsock Report --')) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideMyWindsock) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5485,6 +5559,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideMyWindsock);
+                    }
                 });
             } catch (e) {
                 // updateMyWindsockVisibility error
@@ -5500,11 +5578,13 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         const hasWandrer = /\bfrom\s+wandrer\b/i.test(text) || /\bwandrer\b/i.test(text);
                         if (hasWandrer) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideWandrer) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5516,6 +5596,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideWandrer);
+                    }
                 });
             } catch (e) {
                 // updateWandrerVisibility error
@@ -5531,10 +5615,12 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         if (text.includes('summitbag.com')) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideSummitbag) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5546,6 +5632,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideSummitbag);
+                    }
                 });
             } catch (e) {
                 // updateSummitbagVisibility error
@@ -5561,11 +5651,13 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         const hasBandok = /activity\s+name\s+auto\s+generated\s+by\s+bandok\.com/i.test(text);
                         if (hasBandok) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideBandok) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5577,6 +5669,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideBandok);
+                    }
                 });
             } catch (e) {
                 // updateBandokVisibility error
@@ -5592,11 +5688,13 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         const hasCoros = /--\s*(from|von)\s+coros/i.test(text) || /--\s*coros/i.test(text);
                         if (hasCoros) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideCoros) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5608,6 +5706,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCoros);
+                    }
                 });
             } catch (e) {
                 // updateCorosVisibility error
@@ -5623,10 +5725,12 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         if (text.includes('www.myTF.run')) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideRunHealth) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5638,6 +5742,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRunHealth);
+                    }
                 });
             } catch (e) {
                 // updateRunHealthVisibility error
@@ -5653,11 +5761,13 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         const hasRouvy = /rouvy\.com/i.test(text);
                         if (hasRouvy) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideRouvy) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5669,6 +5779,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRouvy);
+                    }
                 });
             } catch (e) {
                 // updateRouvyVisibility error
@@ -5685,12 +5799,14 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         // Detect Zwift route embeds - starts with map emoji
                         const hasZwiftRoute = text.startsWith('🗺️');
                         if (hasZwiftRoute) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideZwiftRoute) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5702,6 +5818,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideZwiftRoute);
+                    }
                 });
             } catch (e) {
                 // updateZwiftRouteVisibility error
@@ -5718,12 +5838,14 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         // Detect JOIN workout embeds
                         const hasJoin = text.includes('JOIN workout');
                         if (hasJoin) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideJoinWorkout) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5735,6 +5857,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideJoinWorkout);
+                    }
                 });
             } catch (e) {
                 // updateJoinWorkoutVisibility error
@@ -5750,11 +5876,13 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         const hasCoachCat = /\bCoachCat Training Summary\b/i.test(text) || text.includes('fascatcoaching.com/app');
                         if (hasCoachCat) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideCoachCat) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5766,6 +5894,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCoachCat);
+                    }
                 });
             } catch (e) {
                 // updateCoachCatVisibility error
@@ -5781,11 +5913,13 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         const hasXert = /(?:🥉|🥈|🥇|🏅|🎖️)?\s*Xert|Xert\s+(?:Bronze|Silver|Gold|Breakthrough|Achievement|Performance|Analysis)/i.test(text);
                         if (hasXert) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideXert) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5797,6 +5931,10 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideXert);
+                    }
                 });
             } catch (e) {
                 // updateXertVisibility error
@@ -5812,11 +5950,13 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
                         const hasCyql = /Cyql|cyql\.app/i.test(text);
                         if (hasCyql) {
+                            hasEmbed = true;
                             if (settings.enabled && settings.hideCyql) {
                                 if (p.dataset.sffHiddenBy !== 'sff') {
                                     p.dataset.sffHiddenBy = 'sff';
@@ -5828,9 +5968,168 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCyql);
+                    }
                 });
             } catch (e) {
                 // updateCyqlVisibility error
+            }
+        },
+
+        updateEvisoVisibility() {
+            try {
+                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+
+                activities.forEach(activity => {
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
+
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasEmbed = false;
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
+                        const hasEviso = /eviso/i.test(text) || /giro\.eviso\.it/i.test(text);
+                        if (hasEviso) {
+                            hasEmbed = true;
+                            if (settings.enabled && settings.hideEviso) {
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
+                                }
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
+                            }
+                        }
+                    });
+
+                    if (hasEmbed) {
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideEviso);
+                    }
+                });
+            } catch (e) {
+                // updateEvisoVisibility error
+            }
+        },
+
+        updateRestortrainVisibility() {
+            try {
+                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+
+                activities.forEach(activity => {
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
+
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+
+                    // Check if ANY paragraph contains restortrain
+                    const hasRestortrainEmbed = Array.from(paragraphs).some(p => {
+                        const text = p.textContent?.trim() || '';
+                        return /restortrain/i.test(text) || /restortrain\.com/i.test(text);
+                    });
+
+                    if (hasRestortrainEmbed) {
+                        paragraphs.forEach(p => {
+                            if (settings.enabled && settings.hideRestortrain) {
+                                if (p.dataset.sffHiddenBy !== 'sff') {
+                                    p.dataset.sffHiddenBy = 'sff';
+                                    p.style.display = 'none';
+                                }
+                            } else if (p.dataset.sffHiddenBy === 'sff') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
+                            }
+                        });
+                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRestortrain);
+                    }
+                });
+            } catch (e) {
+                // updateRestortrainVisibility error
+            }
+        },
+
+        updateCustomEmbedVisibility() {
+            try {
+                if (!settings.customEmbedFilters || !settings.customEmbedFilters.trim()) {
+                    // No custom filters, restore any previously hidden paragraphs
+                    const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                    activities.forEach(activity => {
+                        const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                        if (!descriptionWrapper) return;
+                        const paragraphs = descriptionWrapper.querySelectorAll('p');
+                        paragraphs.forEach(p => {
+                            if (p.dataset.sffHiddenBy === 'sff-custom') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
+                            }
+                        });
+                        // Restore read more button if it was hidden by custom filters
+                        const readMoreBtn = descriptionWrapper.parentElement?.querySelector('[data-testid="activity_description_read_more"]');
+                        if (readMoreBtn && readMoreBtn.dataset.sffHiddenBy === 'sff-custom') {
+                            readMoreBtn.style.display = '';
+                            delete readMoreBtn.dataset.sffHiddenBy;
+                        }
+                    });
+                    return;
+                }
+
+                // Parse custom filters (comma-separated, min 3 chars)
+                const filters = settings.customEmbedFilters.split(',').map(f => f.trim()).filter(f => f.length >= 3);
+                if (filters.length === 0) return;
+
+                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+
+                activities.forEach(activity => {
+                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                    if (!descriptionWrapper) return;
+
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    let hasCustomEmbed = false;
+
+                    paragraphs.forEach(p => {
+                        const text = p.textContent?.trim() || '';
+                        // Check if text contains any of the custom filters (case-insensitive)
+                        const matchesFilter = filters.some(filter => {
+                            return text.toLowerCase().includes(filter.toLowerCase());
+                        });
+
+                        if (matchesFilter) {
+                            hasCustomEmbed = true;
+                            if (settings.enabled) {
+                                if (p.dataset.sffHiddenBy !== 'sff-custom') {
+                                    p.dataset.sffHiddenBy = 'sff-custom';
+                                    p.style.display = 'none';
+                                }
+                            } else if (p.dataset.sffHiddenBy === 'sff-custom') {
+                                p.style.display = '';
+                                delete p.dataset.sffHiddenBy;
+                            }
+                        } else if (p.dataset.sffHiddenBy === 'sff-custom') {
+                            // Filter no longer matches, restore
+                            p.style.display = '';
+                            delete p.dataset.sffHiddenBy;
+                        }
+                    });
+
+                    if (hasCustomEmbed && settings.enabled) {
+                        const readMoreBtn = descriptionWrapper.parentElement?.querySelector('[data-testid="activity_description_read_more"]');
+                        if (readMoreBtn && readMoreBtn.dataset.sffHiddenBy !== 'sff-custom') {
+                            readMoreBtn.dataset.sffHiddenBy = 'sff-custom';
+                            readMoreBtn.style.display = 'none';
+                        }
+                    } else {
+                        const readMoreBtn = descriptionWrapper.parentElement?.querySelector('[data-testid="activity_description_read_more"]');
+                        if (readMoreBtn && readMoreBtn.dataset.sffHiddenBy === 'sff-custom') {
+                            readMoreBtn.style.display = '';
+                            delete readMoreBtn.dataset.sffHiddenBy;
+                        }
+                    }
+                });
+            } catch (e) {
+                // updateCustomEmbedVisibility error
             }
         },
 
@@ -6104,17 +6403,18 @@ function getSettingsIconUrl(theme) {
                                 if (deviceFound) {
                                     foundAtLeastOneDevice = true;
                                     const deviceLower = deviceFound.toLowerCase();
+                                    const fullSearchLower = searchText.toLowerCase();
                                     
                                     // Check against preset devices
                                     const matchesPreset = settings.recordingDevices.some(preset => 
                                         deviceLower.includes(preset.toLowerCase())
                                     );
                                     
-                                    // Check against custom devices
+                                    // Check against custom devices (search full text for partial name matching)
                                     let matchesCustom = false;
                                     if (settings.recordingDevicesCustom && settings.recordingDevicesCustom.trim()) {
                                         const customDevices = settings.recordingDevicesCustom.split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
-                                        matchesCustom = customDevices.some(custom => deviceLower.includes(custom));
+                                        matchesCustom = customDevices.some(custom => deviceLower.includes(custom) || fullSearchLower.includes(custom));
                                     }
                                     
                                     // If this activity doesn't match the device filter, don't hide the group
@@ -6174,17 +6474,18 @@ function getSettingsIconUrl(theme) {
                         // Check if the found device matches the filter
                         if (deviceFound) {
                             const deviceLower = deviceFound.toLowerCase();
+                            const fullActivityTextLower = (activity.textContent || '').toLowerCase();
                             
                             // Check against preset devices
                             const matchesPreset = settings.recordingDevices.some(preset => 
                                 deviceLower.includes(preset.toLowerCase())
                             );
                             
-                            // Check against custom devices
+                            // Check against custom devices (search full activity text for partial name matching)
                             let matchesCustom = false;
                             if (settings.recordingDevicesCustom && settings.recordingDevicesCustom.trim()) {
                                 const customDevices = settings.recordingDevicesCustom.split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
-                                matchesCustom = customDevices.some(custom => deviceLower.includes(custom));
+                                matchesCustom = customDevices.some(custom => deviceLower.includes(custom) || fullActivityTextLower.includes(custom));
                             }
                             
                             // Hide if device matches
@@ -8260,6 +8561,9 @@ function getSettingsIconUrl(theme) {
         LogicModule.updateCoachCatVisibility();
         LogicModule.updateXertVisibility();
         LogicModule.updateCyqlVisibility();
+        LogicModule.updateEvisoVisibility();
+        LogicModule.updateRestortrainVisibility();
+        LogicModule.updateCustomEmbedVisibility();
 
         // Apply mobile responsive layout on activity pages
         applyMobileResponsive();
@@ -8288,6 +8592,9 @@ function getSettingsIconUrl(theme) {
             LogicModule.updateCoachCatVisibility();
             LogicModule.updateXertVisibility();
             LogicModule.updateCyqlVisibility();
+            LogicModule.updateEvisoVisibility();
+            LogicModule.updateRestortrainVisibility();
+            LogicModule.updateCustomEmbedVisibility();
         });
         observer.observe(document.body, { childList: true, subtree: true });
 

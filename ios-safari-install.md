@@ -1,8 +1,18 @@
 # Install Strava Feed Filter on iOS & iPadOS (Orion Browser)
 
-Strava Feed Filter (SFF) no longer ships a dedicated Safari-only userscript. Instead, you get the **full Chrome/Firefox extension experience** on iPhone and iPad by using the [Orion browser](https://orionbrowser.com/), which supports desktop-class extensions. This guide walks through the new flow for both devices.
+---
 
-> ⚠️ **Legacy notice**: `userscript/sff-safari.user.js` is deprecated and will be removed in a future release. Please migrate to Orion as soon as possible for continued updates, dark mode, notification bell, and new filtering features.
+## ⚠️ USERSCRIPTS ARE DEPRECATED
+
+> ### 🚫 The Safari userscript (`sff-safari.user.js`) and all other userscripts are **no longer maintained**
+>
+> **Extensions are significantly more powerful** — they receive all new features, bug fixes, dark mode, real-time filtering, update notifications, and more. Userscripts will not receive further updates and will be removed in a future release.
+>
+> **iPhone & iPad users**: Install the free [Orion Browser by Kagi](https://apps.apple.com/app/orion-browser-by-kagi/id1484498200) from the App Store — it supports full Chrome and Firefox extensions on iOS & iPadOS. Follow the steps below to get the complete extension experience.
+
+---
+
+Strava Feed Filter (SFF) no longer ships a dedicated Safari-only userscript. Instead, you get the **full Chrome/Firefox extension experience** on iPhone and iPad by using the [Orion browser](https://orionbrowser.com/), which supports desktop-class extensions. This guide walks through the new flow for both devices.
 
 ## TL;DR
 

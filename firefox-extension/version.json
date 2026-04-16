@@ -1,6 +1,6 @@
 {
   "firefox": {
-    "latest": "2.6.2",
+    "latest": "2.7.0",
     "store_url": "https://addons.mozilla.org/en-US/firefox/addon/strava-feed-filter/"
   }
 }
