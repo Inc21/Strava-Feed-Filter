@@ -4,6 +4,12 @@
 
 ### v2.7.0 New Features
 
+- **Activity Tags Filtering**
+  - New "Activity Tags" dropdown between Activity Types and Recording Devices.
+  - Filter activities by Strava's new activity tag feature: Race, For a Cause, Workout, Recovery, Commute, With Pet, With Kid.
+  - Tags are read directly from the activity map area using Strava's `data-testid="tag"` elements.
+- **5 New Activity Types**
+  - Added 5 new sport types to the Activity Types filter.
 - **Custom Embed Filters**
   - Added a "Custom Embeds (comma-separated)" textarea at the bottom of the 3rd Party Embeds dropdown.
   - Filters apply in real-time as you type (no save & refresh required). Patterns are matched case-insensitively against activity description paragraphs.

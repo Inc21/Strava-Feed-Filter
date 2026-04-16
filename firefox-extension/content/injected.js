@@ -105,6 +105,8 @@ function getSettingsIconUrl(theme) {
         recordingDevices: [],
         recordingDevicesCustom: "",
         hideAllDevices: false,
+        activityTags: [],
+        hideAllTags: false,
         hideNoMap: false,
         hideGiveGift: true,
         hideStartTrial: true,
@@ -2753,6 +2755,10 @@ function getSettingsIconUrl(theme) {
                 .map(x => x.trim())
                 .filter(Boolean);
 
+            settings.activityTags = Array.from(panel.querySelectorAll('.sff-tag-checkbox:checked'))
+                .map(input => input.dataset.tag)
+                .filter(Boolean);
+
             settings.recordingDevices = Array.from(panel.querySelector('.sff-devices').querySelectorAll('input[type="checkbox"][data-device]:checked'))
                 .map(input => input.dataset.device)
                 .filter(Boolean);
@@ -3649,6 +3655,31 @@ function getSettingsIconUrl(theme) {
                                     <label class="sff-chip ${settings.types[t.key] ? 'checked' : ''}">
                                         <input type="checkbox" data-typ="${t.key}" ${settings.types[t.key] ? 'checked' : ''}>
                                         ${t.label}
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sff-row sff-dropdown">
+                        <div class="sff-dropdown-header">
+                            <span class="sff-label">Activity Tags</span>
+                            <div class="sff-dropdown-right">
+                                <span class="sff-dropdown-indicator">▼</span>
+                            </div>
+                        </div>
+                        <div class="sff-dropdown-content">
+                            <p class="sff-dropdown-description">Hide activities with specific tags</p>
+                            <div class="sff-embeds-controls">
+                                <label class="sff-chip sff-tags-hide-all ${settings.hideAllTags ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideAllTags" ${settings.hideAllTags ? 'checked' : ''}>
+                                    Hide All Tags
+                                </label>
+                            </div>
+                            <div class="sff-embeds-grid">
+                                ${['Race', 'For a Cause', 'Workout', 'Recovery', 'Commute', 'With Pet', 'With Kid'].map(tag => `
+                                    <label class="sff-chip ${settings.activityTags && settings.activityTags.includes(tag) ? 'checked' : ''}">
+                                        <input type="checkbox" class="sff-tag-checkbox" data-tag="${tag}" ${settings.activityTags && settings.activityTags.includes(tag) ? 'checked' : ''}>
+                                        ${tag}
                                     </label>
                                 `).join('')}
                             </div>
@@ -4641,6 +4672,37 @@ function getSettingsIconUrl(theme) {
                         settings.hideYourClubs = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateYourClubsVisibility();
+                        LogicModule.filterActivities();
+                    }
+
+                    // Activity tags - Hide All
+                    if (e.target.classList.contains('sff-hideAllTags')) {
+                        const isChecked = e.target.checked;
+                        settings.hideAllTags = isChecked;
+                        const allTags = ['Race', 'For a Cause', 'Workout', 'Recovery', 'Commute', 'With Pet', 'With Kid'];
+                        settings.activityTags = isChecked ? [...allTags] : [];
+                        const chip = e.target.closest('.sff-chip');
+                        if (chip) chip.classList.toggle('checked', isChecked);
+                        panel.querySelectorAll('.sff-tag-checkbox').forEach(cb => {
+                            cb.checked = isChecked;
+                            cb.closest('.sff-chip')?.classList.toggle('checked', isChecked);
+                        });
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.filterActivities();
+                    }
+
+                    // Activity tags
+                    if (e.target.classList.contains('sff-tag-checkbox')) {
+                        const tag = e.target.dataset.tag;
+                        const isChecked = e.target.checked;
+                        if (!settings.activityTags) settings.activityTags = [];
+                        if (isChecked) {
+                            if (!settings.activityTags.includes(tag)) settings.activityTags.push(tag);
+                        } else {
+                            settings.activityTags = settings.activityTags.filter(t => t !== tag);
+                        }
+                        e.target.closest('.sff-chip')?.classList.toggle('checked', isChecked);
+                        UtilsModule.saveSettings(settings);
                         LogicModule.filterActivities();
                     }
 
@@ -5913,22 +5975,22 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
+
+                    // Match plain "Xert", circled Unicode variant ⓧⓔⓡⓣ, or Xert-specific fields (XSS:)
+                    const hasEmbed = Array.from(paragraphs).some(p => {
+                        const text = p.textContent?.trim() || '';
+                        return /(?:🥉|🥈|🥇|🏅|🎖️)?\s*Xert|Xert\s+(?:Bronze|Silver|Gold|Breakthrough|Achievement|Performance|Analysis)|ⓧⓔⓡⓣ|XSS:/i.test(text);
+                    });
 
                     paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        const hasXert = /(?:🥉|🥈|🥇|🏅|🎖️)?\s*Xert|Xert\s+(?:Bronze|Silver|Gold|Breakthrough|Achievement|Performance|Analysis)/i.test(text);
-                        if (hasXert) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideXert) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                        if (hasEmbed && settings.enabled && settings.hideXert) {
+                            if (p.dataset.sffHiddenBy !== 'sff') {
+                                p.dataset.sffHiddenBy = 'sff';
+                                p.style.display = 'none';
                             }
+                        } else if (p.dataset.sffHiddenBy === 'sff') {
+                            p.style.display = '';
+                            delete p.dataset.sffHiddenBy;
                         }
                     });
 
@@ -6076,8 +6138,8 @@ function getSettingsIconUrl(theme) {
                     return;
                 }
 
-                // Parse custom filters (comma-separated, min 3 chars)
-                const filters = settings.customEmbedFilters.split(',').map(f => f.trim()).filter(f => f.length >= 3);
+                // Parse custom filters (comma-separated, non-empty)
+                const filters = settings.customEmbedFilters.split(',').map(f => f.trim()).filter(f => f.length > 0);
                 if (filters.length === 0) return;
 
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
@@ -6087,41 +6149,32 @@ function getSettingsIconUrl(theme) {
                     if (!descriptionWrapper) return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasCustomEmbed = false;
+
+                    // Check if ANY paragraph matches — if so, hide ALL paragraphs
+                    const hasCustomEmbed = Array.from(paragraphs).some(p => {
+                        const text = p.textContent?.trim() || '';
+                        return filters.some(filter => text.toLowerCase().includes(filter.toLowerCase()));
+                    });
 
                     paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        // Check if text contains any of the custom filters (case-insensitive)
-                        const matchesFilter = filters.some(filter => {
-                            return text.toLowerCase().includes(filter.toLowerCase());
-                        });
-
-                        if (matchesFilter) {
-                            hasCustomEmbed = true;
-                            if (settings.enabled) {
-                                if (p.dataset.sffHiddenBy !== 'sff-custom') {
-                                    p.dataset.sffHiddenBy = 'sff-custom';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff-custom') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                        if (hasCustomEmbed && settings.enabled) {
+                            if (p.dataset.sffHiddenBy !== 'sff-custom') {
+                                p.dataset.sffHiddenBy = 'sff-custom';
+                                p.style.display = 'none';
                             }
                         } else if (p.dataset.sffHiddenBy === 'sff-custom') {
-                            // Filter no longer matches, restore
                             p.style.display = '';
                             delete p.dataset.sffHiddenBy;
                         }
                     });
 
+                    const readMoreBtn = descriptionWrapper.parentElement?.querySelector('[data-testid="activity_description_read_more"]');
                     if (hasCustomEmbed && settings.enabled) {
-                        const readMoreBtn = descriptionWrapper.parentElement?.querySelector('[data-testid="activity_description_read_more"]');
                         if (readMoreBtn && readMoreBtn.dataset.sffHiddenBy !== 'sff-custom') {
                             readMoreBtn.dataset.sffHiddenBy = 'sff-custom';
                             readMoreBtn.style.display = 'none';
                         }
                     } else {
-                        const readMoreBtn = descriptionWrapper.parentElement?.querySelector('[data-testid="activity_description_read_more"]');
                         if (readMoreBtn && readMoreBtn.dataset.sffHiddenBy === 'sff-custom') {
                             readMoreBtn.style.display = '';
                             delete readMoreBtn.dataset.sffHiddenBy;
@@ -6316,7 +6369,9 @@ function getSettingsIconUrl(theme) {
                         // This protects "VirtualRide" from being hidden by the generic "Ride" logic below.
                     } else {
                         // Fallback for group activities or unresolved types
-                        const isVirtual = normalizedTypeText.includes('virtual');
+                        // Also check activity tags for "Virtual" (group virtual rides carry this tag)
+                        const activityTagTextsForType = Array.from(activity.querySelectorAll('[data-testid="tag"]')).map(el => el.textContent.trim().toLowerCase());
+                        const isVirtual = normalizedTypeText.includes('virtual') || activityTagTextsForType.includes('virtual');
                         
                         if (isVirtual) {
                             const hideAnyVirtual = TYPE_LABEL_METADATA.filter(t => t.normalized.includes('virtual')).some(t => settings.types[t.key]);
@@ -6335,6 +6390,14 @@ function getSettingsIconUrl(theme) {
                             }
                         }
                     }
+                }
+
+                // Activity tag filtering
+                if (!shouldHide && settings.activityTags && settings.activityTags.length > 0) {
+                    const tagEls = activity.querySelectorAll('[data-testid="tag"]');
+                    const activityTagTexts = Array.from(tagEls).map(el => el.textContent.trim());
+                    const matchesTag = settings.activityTags.some(tag => activityTagTexts.includes(tag));
+                    if (matchesTag) shouldHide = true;
                 }
 
                 // Recording device filtering
