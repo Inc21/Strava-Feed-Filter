@@ -123,8 +123,14 @@ function getSettingsIconUrl(theme) {
         hideCoros: false,
         hideRouvy: false,
         hideZwiftRoute: false,
+        hideJoinWorkout: false,
+        hideCoachCat: false,
+        hideXert: false,
+        hideCyql: false,
+        hideEviso: false,
         hideRestortrain: false,
         hideAthleteJoinedClub: false,
+        preventVideoAutoplay: false,
         customEmbedFilters: "",
         hideFooter: false,
         showKudosButton: true,
@@ -2346,7 +2352,13 @@ function getSettingsIconUrl(theme) {
           grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
         }
       }
-        `);
+
+      /* Hide preset embeds using CSS class (survives Strava re-renders) */
+      .sff-hide-preset {
+        display: none !important;
+      }
+
+            `);
     }
 
     // Initialize CSS Module
@@ -2786,6 +2798,7 @@ function getSettingsIconUrl(theme) {
             const maxPaceValue = panel.querySelector('.sff-maxPace').value.trim();
             settings.minPace = UtilsModule.parsePaceInput(minPaceValue);
             settings.maxPace = UtilsModule.parsePaceInput(maxPaceValue);
+            settings.preventVideoAutoplay = panel.querySelector('.sff-preventVideoAutoplay') ? panel.querySelector('.sff-preventVideoAutoplay').checked : settings.preventVideoAutoplay;
             settings.unitSystem = panel.querySelector('.sff-unit-btn.active').dataset.unit;
             settings.hideNoMap = panel.querySelector('.sff-hideNoMap').checked;
             settings.hideClubPosts = panel.querySelector('.sff-hideClubPosts').checked;
@@ -4019,6 +4032,16 @@ function getSettingsIconUrl(theme) {
                             <option value="never" ${settings.seeMoreButtonMode === 'never' ? 'selected' : ''}>Never show</option>
                         </select>
                     </div>
+
+                    <div style="margin-bottom: 7.5px;">
+                        <div class="sff-label-with-info">
+                            <label class="sff-chip ${settings.preventVideoAutoplay ? 'checked' : ''}">
+                                <input type="checkbox" class="sff-preventVideoAutoplay" ${settings.preventVideoAutoplay ? 'checked' : ''}>
+                                Prevent feed video autoplay
+                            </label>
+                            <span class="sff-info-icon" data-info="When enabled, feed videos are blocked from auto-playing. Tap a video to play it manually.">?</span>
+                        </div>
+                    </div>
                     
                     <!-- Mobile Responsiveness - Hidden (experimental feature, disabled by default)
                     <div style="margin-bottom: 7.5px;">
@@ -4833,6 +4856,11 @@ function getSettingsIconUrl(theme) {
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateRestortrainVisibility();
                     }
+                    if (e.target.classList.contains('sff-preventVideoAutoplay')) {
+                        settings.preventVideoAutoplay = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateVideoAutoplayControl();
+                    }
                     if (e.target.classList.contains('sff-customEmbedFilters')) {
                         settings.customEmbedFilters = e.target.value;
                         UtilsModule.saveSettings(settings);
@@ -5595,449 +5623,374 @@ function getSettingsIconUrl(theme) {
             }
         },
 
-        updateMyWindsockVisibility() {
+        updateVideoAutoplayControl() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                const videos = document.querySelectorAll('.activity video, .feed-entry video, [data-testid="web-feed-entry"] video');
 
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                videos.forEach(video => {
+                    if (!video.__sffAutoplayGuardBound) {
+                        const markUserPlayIntent = () => {
+                            video.dataset.sffUserPlay = '1';
+                        };
 
-                    const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
+                        const blockAutoPlay = () => {
+                            if (!settings.enabled || !settings.preventVideoAutoplay) return;
+                            if (video.dataset.sffUserPlay === '1') return;
+                            try {
+                                video.pause();
+                            } catch (e) {
+                                // ignore pause errors
+                            }
+                        };
 
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        if (text.includes('-- myWindsock Report --')) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideMyWindsock) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                        video.addEventListener('pointerdown', markUserPlayIntent, true);
+                        video.addEventListener('touchstart', markUserPlayIntent, true);
+                        video.addEventListener('click', markUserPlayIntent, true);
+                        video.addEventListener('play', blockAutoPlay, true);
+
+                        video.__sffAutoplayGuardBound = true;
+                    }
+
+                    if (settings.enabled && settings.preventVideoAutoplay) {
+                        video.autoplay = false;
+                        video.removeAttribute('autoplay');
+                        if (video.dataset.sffUserPlay !== '1' && !video.paused) {
+                            try {
+                                video.pause();
+                            } catch (e) {
+                                // ignore pause errors
                             }
                         }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideMyWindsock);
                     }
                 });
             } catch (e) {
-                // updateMyWindsockVisibility error
+                // updateVideoAutoplayControl error
             }
+        },
+
+        updateMyWindsockVisibility() {
+            try {
+                // Find ALL p tags that contain myWindsock text anywhere on the page
+                const allParagraphs = document.querySelectorAll('p');
+                allParagraphs.forEach(p => {
+                    const text = (p.textContent?.trim() || '').toLowerCase();
+                    const hasMarker = p.dataset.sffHiddenBy === 'sff';
+                    
+                    if (text.includes('mywindsock')) {
+                        if (settings.enabled && settings.hideMyWindsock) {
+                            // Always ensure class is present
+                            if (!p.classList.contains('sff-hide-preset')) {
+                                p.classList.add('sff-hide-preset');
+                            }
+                            p.dataset.sffHiddenBy = 'sff';
+                        } else {
+                            p.classList.remove('sff-hide-preset');
+                            delete p.dataset.sffHiddenBy;
+                        }
+                    } else if (hasMarker) {
+                        // If marked but no longer contains myWindsock, unmark it
+                        p.classList.remove('sff-hide-preset');
+                        delete p.dataset.sffHiddenBy;
+                    }
+                });
+            } catch (e) { /* updateMyWindsockVisibility error */ }
         },
 
         updateWandrerVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        const hasWandrer = /\bfrom\s+wandrer\b/i.test(text) || /\bwandrer\b/i.test(text);
-                        if (hasWandrer) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideWandrer) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                    const hasEmbed = Array.from(paragraphs).some(p => /\bwandrer\b/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideWandrer) {
+                        paragraphs.forEach(p => {
+                            if (/\bwandrer\b/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
                             }
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideWandrer);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/\bwandrer\b/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideWandrer);
                 });
-            } catch (e) {
-                // updateWandrerVisibility error
-            }
+            } catch (e) { /* updateWandrerVisibility error */ }
         },
 
         updateSummitbagVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
+                    const hasEmbed = Array.from(paragraphs).some(p => {
                         const text = p.textContent?.trim() || '';
-                        if (text.includes('summitbag.com')) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideSummitbag) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
-                            }
-                        }
+                        return text.includes('summitbag.com');
                     });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideSummitbag);
+                    if (hasEmbed && settings.enabled && settings.hideSummitbag) {
+                        paragraphs.forEach(p => {
+                            if (p.textContent?.trim().includes('summitbag.com')) {
+                                p.style.display = 'none';
+                            }
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            p.style.display = '';
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideSummitbag);
                 });
-            } catch (e) {
-                // updateSummitbagVisibility error
-            }
+            } catch (e) { /* updateSummitbagVisibility error */ }
         },
 
         updateBandokVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        const hasBandok = /activity\s+name\s+auto\s+generated\s+by\s+bandok\.com/i.test(text);
-                        if (hasBandok) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideBandok) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                    const hasEmbed = Array.from(paragraphs).some(p => /bandok\.com/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideBandok) {
+                        paragraphs.forEach(p => {
+                            if (/bandok\.com/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
                             }
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideBandok);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/bandok\.com/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideBandok);
                 });
-            } catch (e) {
-                // updateBandokVisibility error
-            }
+            } catch (e) { /* updateBandokVisibility error */ }
         },
 
         updateCorosVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        const hasCoros = /--\s*(from|von)\s+coros/i.test(text) || /--\s*coros/i.test(text);
-                        if (hasCoros) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideCoros) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                    const hasEmbed = Array.from(paragraphs).some(p => /\bcoros\b/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideCoros) {
+                        paragraphs.forEach(p => {
+                            if (/\bcoros\b/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
                             }
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCoros);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/\bcoros\b/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCoros);
                 });
-            } catch (e) {
-                // updateCorosVisibility error
-            }
+            } catch (e) { /* updateCorosVisibility error */ }
         },
 
         updateRunHealthVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        if (text.includes('www.myTF.run')) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideRunHealth) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                    const hasEmbed = Array.from(paragraphs).some(p => /myTF\.run|run-health/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideRunHealth) {
+                        paragraphs.forEach(p => {
+                            if (/myTF\.run|run-health/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
                             }
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRunHealth);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/myTF\.run|run-health/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRunHealth);
                 });
-            } catch (e) {
-                // updateRunHealthVisibility error
-            }
+            } catch (e) { /* updateRunHealthVisibility error */ }
         },
 
         updateRouvyVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        const hasRouvy = /rouvy\.com/i.test(text);
-                        if (hasRouvy) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideRouvy) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                    const hasEmbed = Array.from(paragraphs).some(p => /rouvy\.com|go\.rouvy\.com/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideRouvy) {
+                        paragraphs.forEach(p => {
+                            if (/rouvy\.com|go\.rouvy\.com/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
                             }
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRouvy);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/rouvy\.com|go\.rouvy\.com/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRouvy);
                 });
-            } catch (e) {
-                // updateRouvyVisibility error
-            }
+            } catch (e) { /* updateRouvyVisibility error */ }
         },
 
         updateZwiftRouteVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
-                    // Find only paragraphs within the activity description wrapper
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        // Detect Zwift route embeds - starts with map emoji
-                        const hasZwiftRoute = text.startsWith('🗺️');
-                        if (hasZwiftRoute) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideZwiftRoute) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                    const hasEmbed = Array.from(paragraphs).some(p => (p.textContent?.trim() || '').startsWith('🗺️'));
+                    if (hasEmbed && settings.enabled && settings.hideZwiftRoute) {
+                        paragraphs.forEach(p => {
+                            if ((p.textContent?.trim() || '').startsWith('🗺️')) {
+                                p.style.display = 'none';
                             }
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideZwiftRoute);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if ((p.textContent?.trim() || '').startsWith('🗺️')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideZwiftRoute);
                 });
-            } catch (e) {
-                // updateZwiftRouteVisibility error
-            }
+            } catch (e) { /* updateZwiftRouteVisibility error */ }
         },
 
         updateJoinWorkoutVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
-                    // Find only paragraphs within the activity description wrapper
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        // Detect JOIN workout embeds
-                        const hasJoin = text.includes('JOIN workout');
-                        if (hasJoin) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideJoinWorkout) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                    const hasEmbed = Array.from(paragraphs).some(p => (p.textContent?.trim() || '').includes('JOIN workout'));
+                    if (hasEmbed && settings.enabled && settings.hideJoinWorkout) {
+                        paragraphs.forEach(p => {
+                            if ((p.textContent?.trim() || '').includes('JOIN workout')) {
+                                p.style.display = 'none';
                             }
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideJoinWorkout);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if ((p.textContent?.trim() || '').includes('JOIN workout')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideJoinWorkout);
                 });
-            } catch (e) {
-                // updateJoinWorkoutVisibility error
-            }
+            } catch (e) { /* updateJoinWorkoutVisibility error */ }
         },
 
         updateCoachCatVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
+                    const hasEmbed = Array.from(paragraphs).some(p => {
                         const text = p.textContent?.trim() || '';
-                        const hasCoachCat = /\bCoachCat Training Summary\b/i.test(text) || text.includes('fascatcoaching.com/app');
-                        if (hasCoachCat) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideCoachCat) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
-                            }
-                        }
+                        return /\bCoachCat\b/i.test(text) || text.includes('fascatcoaching.com');
                     });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCoachCat);
+                    if (hasEmbed && settings.enabled && settings.hideCoachCat) {
+                        paragraphs.forEach(p => {
+                            const text = p.textContent?.trim() || '';
+                            if (/\bCoachCat\b/i.test(text) || text.includes('fascatcoaching.com')) {
+                                p.style.display = 'none';
+                            }
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            const text = p.textContent?.trim() || '';
+                            if (/\bCoachCat\b/i.test(text) || text.includes('fascatcoaching.com')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCoachCat);
                 });
-            } catch (e) {
-                // updateCoachCatVisibility error
-            }
+            } catch (e) { /* updateCoachCatVisibility error */ }
         },
 
         updateXertVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-
-                    // Match plain "Xert", circled Unicode variant ⓧⓔⓡⓣ, or Xert-specific fields (XSS:)
                     const hasEmbed = Array.from(paragraphs).some(p => {
                         const text = p.textContent?.trim() || '';
                         return /(?:🥉|🥈|🥇|🏅|🎖️)?\s*Xert|Xert\s+(?:Bronze|Silver|Gold|Breakthrough|Achievement|Performance|Analysis)|ⓧⓔⓡⓣ|XSS:/i.test(text);
                     });
-
-                    paragraphs.forEach(p => {
-                        if (hasEmbed && settings.enabled && settings.hideXert) {
-                            if (p.dataset.sffHiddenBy !== 'sff') {
-                                p.dataset.sffHiddenBy = 'sff';
+                    if (hasEmbed && settings.enabled && settings.hideXert) {
+                        paragraphs.forEach(p => {
+                            const text = p.textContent?.trim() || '';
+                            if (/(?:🥉|🥈|🥇|🏅|🎖️)?\s*Xert|Xert\s+(?:Bronze|Silver|Gold|Breakthrough|Achievement|Performance|Analysis)|ⓧⓔⓡⓣ|XSS:/i.test(text)) {
                                 p.style.display = 'none';
                             }
-                        } else if (p.dataset.sffHiddenBy === 'sff') {
-                            p.style.display = '';
-                            delete p.dataset.sffHiddenBy;
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideXert);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            const text = p.textContent?.trim() || '';
+                            if (/(?:🥉|🥈|🥇|🏅|🎖️)?\s*Xert|Xert\s+(?:Bronze|Silver|Gold|Breakthrough|Achievement|Performance|Analysis)|ⓧⓔⓡⓣ|XSS:/i.test(text)) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideXert);
                 });
-            } catch (e) {
-                // updateXertVisibility error
-            }
+            } catch (e) { /* updateXertVisibility error */ }
         },
 
         updateCyqlVisibility() {
             try {
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
-
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    let hasEmbed = false;
-
-                    paragraphs.forEach(p => {
-                        const text = p.textContent?.trim() || '';
-                        const hasCyql = /Cyql|cyql\.app/i.test(text);
-                        if (hasCyql) {
-                            hasEmbed = true;
-                            if (settings.enabled && settings.hideCyql) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                    const hasEmbed = Array.from(paragraphs).some(p => /\bCyql\b|cyql\.app/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideCyql) {
+                        paragraphs.forEach(p => {
+                            if (/\bCyql\b|cyql\.app/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
                             }
-                        }
-                    });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCyql);
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/\bCyql\b|cyql\.app/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideCyql);
                 });
-            } catch (e) {
-                // updateCyqlVisibility error
-            }
+            } catch (e) { /* updateCyqlVisibility error */ }
         },
 
         updateEvisoVisibility() {
@@ -6053,24 +6006,26 @@ function getSettingsIconUrl(theme) {
 
                     paragraphs.forEach(p => {
                         const text = p.textContent?.trim() || '';
-                        const hasEviso = /eviso/i.test(text) || /giro\.eviso\.it/i.test(text);
-                        if (hasEviso) {
+                        if (/eviso/i.test(text) || /giro\.eviso\.it/i.test(text)) {
                             hasEmbed = true;
-                            if (settings.enabled && settings.hideEviso) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
-                            }
                         }
                     });
-
-                    if (hasEmbed) {
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideEviso);
+                    if (hasEmbed && settings.enabled && settings.hideEviso) {
+                        paragraphs.forEach(p => {
+                            const text = p.textContent?.trim() || '';
+                            if (/eviso/i.test(text) || /giro\.eviso\.it/i.test(text)) {
+                                p.style.display = 'none';
+                            }
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            const text = p.textContent?.trim() || '';
+                            if (/eviso/i.test(text) || /giro\.eviso\.it/i.test(text)) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideEviso);
                 });
             } catch (e) {
                 // updateEvisoVisibility error
@@ -6093,20 +6048,22 @@ function getSettingsIconUrl(theme) {
                         return /restortrain/i.test(text) || /restortrain\.com/i.test(text);
                     });
 
-                    if (hasRestortrainEmbed) {
+                    if (hasRestortrainEmbed && settings.enabled && settings.hideRestortrain) {
                         paragraphs.forEach(p => {
-                            if (settings.enabled && settings.hideRestortrain) {
-                                if (p.dataset.sffHiddenBy !== 'sff') {
-                                    p.dataset.sffHiddenBy = 'sff';
-                                    p.style.display = 'none';
-                                }
-                            } else if (p.dataset.sffHiddenBy === 'sff') {
-                                p.style.display = '';
-                                delete p.dataset.sffHiddenBy;
+                            const text = p.textContent?.trim() || '';
+                            if (/restortrain/i.test(text) || /restortrain\.com/i.test(text)) {
+                                p.style.display = 'none';
                             }
                         });
-                        this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRestortrain);
+                    } else {
+                        paragraphs.forEach(p => {
+                            const text = p.textContent?.trim() || '';
+                            if (/restortrain/i.test(text) || /restortrain\.com/i.test(text)) {
+                                p.style.display = '';
+                            }
+                        });
                     }
+                    if (hasRestortrainEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRestortrain);
                 });
             } catch (e) {
                 // updateRestortrainVisibility error
@@ -6124,7 +6081,7 @@ function getSettingsIconUrl(theme) {
                         const paragraphs = descriptionWrapper.querySelectorAll('p');
                         paragraphs.forEach(p => {
                             if (p.dataset.sffHiddenBy === 'sff-custom') {
-                                p.style.display = '';
+                                p.classList.remove('sff-hide-preset');
                                 delete p.dataset.sffHiddenBy;
                             }
                         });
@@ -6140,13 +6097,31 @@ function getSettingsIconUrl(theme) {
 
                 // Parse custom filters (comma-separated, non-empty)
                 const filters = settings.customEmbedFilters.split(',').map(f => f.trim()).filter(f => f.length > 0);
-                if (filters.length === 0) return;
+                if (filters.length === 0) {
+                    // No filters after parsing, restore all hidden paragraphs
+                    const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                    activities.forEach(activity => {
+                        const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
+                        if (!descriptionWrapper) return;
+                        const paragraphs = descriptionWrapper.querySelectorAll('p');
+                        paragraphs.forEach(p => {
+                            if (p.dataset.sffHiddenBy === 'sff-custom') {
+                                p.classList.remove('sff-hide-preset');
+                                delete p.dataset.sffHiddenBy;
+                            }
+                        });
+                    });
+                    return;
+                }
 
                 const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
                 activities.forEach(activity => {
                     const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
                     if (!descriptionWrapper) return;
+
+                    // Skip if already hidden by a preset embed filter
+                    if (descriptionWrapper.dataset.sffHiddenBy === 'sff-preset') return;
 
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
 
@@ -6160,10 +6135,10 @@ function getSettingsIconUrl(theme) {
                         if (hasCustomEmbed && settings.enabled) {
                             if (p.dataset.sffHiddenBy !== 'sff-custom') {
                                 p.dataset.sffHiddenBy = 'sff-custom';
-                                p.style.display = 'none';
+                                p.classList.add('sff-hide-preset');
                             }
                         } else if (p.dataset.sffHiddenBy === 'sff-custom') {
-                            p.style.display = '';
+                            p.classList.remove('sff-hide-preset');
                             delete p.dataset.sffHiddenBy;
                         }
                     });
@@ -6785,6 +6760,7 @@ function getSettingsIconUrl(theme) {
                     this.updateXertVisibility();
                     this.updateCyqlVisibility();
                     this.updateAthleteJoinedClubVisibility();
+                    this.updateVideoAutoplayControl();
                     this.manageSeeMoreButtons();
                 } catch (e) {
                     // Auto-filter error
@@ -6836,6 +6812,7 @@ function getSettingsIconUrl(theme) {
                 this.updateXertVisibility();
                 this.updateCyqlVisibility();
                 this.updateAthleteJoinedClubVisibility();
+                this.updateVideoAutoplayControl();
                 this.manageHeaderKudosButton();
                 UIModule.syncSecondaryKudosVisibility();
                 this.manageSeeMoreButtons();
@@ -6902,6 +6879,8 @@ function getSettingsIconUrl(theme) {
                     badge.textContent = '0';
                     badge.classList.remove('show');
                 });
+
+                this.updateVideoAutoplayControl();
             }
         },
 
@@ -8620,6 +8599,7 @@ function getSettingsIconUrl(theme) {
         LogicModule.updateBandokVisibility();
         LogicModule.updateCorosVisibility();
         LogicModule.updateRouvyVisibility();
+        LogicModule.updateZwiftRouteVisibility();
         LogicModule.updateJoinWorkoutVisibility();
         LogicModule.updateCoachCatVisibility();
         LogicModule.updateXertVisibility();
@@ -8627,6 +8607,7 @@ function getSettingsIconUrl(theme) {
         LogicModule.updateEvisoVisibility();
         LogicModule.updateRestortrainVisibility();
         LogicModule.updateCustomEmbedVisibility();
+        LogicModule.updateVideoAutoplayControl();
 
         // Apply mobile responsive layout on activity pages
         applyMobileResponsive();
@@ -8658,11 +8639,31 @@ function getSettingsIconUrl(theme) {
             LogicModule.updateEvisoVisibility();
             LogicModule.updateRestortrainVisibility();
             LogicModule.updateCustomEmbedVisibility();
+            LogicModule.updateVideoAutoplayControl();
         });
         observer.observe(document.body, { childList: true, subtree: true });
 
         // Store observer for cleanup if needed
         window.__sffGlobalObserver = observer;
+
+        // Re-apply embed filters on scroll to handle lazy-loaded content
+        window.addEventListener('scroll', () => {
+            LogicModule.updateMyWindsockVisibility();
+            LogicModule.updateWandrerVisibility();
+            LogicModule.updateSummitbagVisibility();
+            LogicModule.updateRunHealthVisibility();
+            LogicModule.updateBandokVisibility();
+            LogicModule.updateCorosVisibility();
+            LogicModule.updateRouvyVisibility();
+            LogicModule.updateZwiftRouteVisibility();
+            LogicModule.updateJoinWorkoutVisibility();
+            LogicModule.updateCoachCatVisibility();
+            LogicModule.updateXertVisibility();
+            LogicModule.updateCyqlVisibility();
+            LogicModule.updateEvisoVisibility();
+            LogicModule.updateRestortrainVisibility();
+            LogicModule.updateVideoAutoplayControl();
+        }, { passive: true });
 
         // Performance: Disconnect global observer when user is inactive for better battery life
         let inactivityTimer;
