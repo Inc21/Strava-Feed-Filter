@@ -21,3 +21,5 @@ coverage/
 
 # Local docs and scratch space
 .docs/
+
+run-mobile.bat

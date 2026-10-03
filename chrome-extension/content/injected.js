@@ -107,6 +107,7 @@ function getSettingsIconUrl(theme) {
         hideAllDevices: false,
         activityTags: [],
         hideAllTags: false,
+        hideUntagged: false,
         hideNoMap: false,
         hideGiveGift: true,
         hideStartTrial: true,
@@ -130,7 +131,7 @@ function getSettingsIconUrl(theme) {
         hideEviso: false,
         hideRestortrain: false,
         hideAthleteJoinedClub: false,
-        preventVideoAutoplay: false,
+        preventVideoAutoplay: true,
         customEmbedFilters: "",
         hideFooter: false,
         showKudosButton: true,
@@ -149,7 +150,8 @@ function getSettingsIconUrl(theme) {
         enabled: true,
         theme: 'light',
         compactButtons: false,
-        mobileResponsive: false  // Disabled by default - experimental feature
+        mobileResponsive: true, // Mobile-friendly activity pages by default
+        preventAppOpen: true    // Hide Strava app promo banners by default
     };
 
     const TYPES = [
@@ -182,6 +184,7 @@ function getSettingsIconUrl(theme) {
         { key: "Kitesurf", label: "Kitesurf" },
         { key: "NordicSki", label: "Nordic Ski" },
         { key: "Padel", label: "Padel" },
+        { key: "PhysicalTherapy", label: "Physical Therapy" },
         { key: "Pickleball", label: "Pickleball" },
         { key: "Pilates", label: "Pilates" },
         { key: "Racquetball", label: "Racquetball" },
@@ -1124,6 +1127,14 @@ function getSettingsIconUrl(theme) {
         color: #dc3545 !important;
       }
 
+      /* Strava's own app-promo bars, hidden while the prevent-app-open guard is on */
+      body.sff-no-app-promo [class*="appBanner"],
+      body.sff-no-app-promo [class*="app-banner"],
+      body.sff-no-app-promo [class*="AppBanner"],
+      body.sff-no-app-promo [data-testid*="app-banner"] {
+        display: none !important;
+      }
+
       .sff-switch {
         position: relative !important;
         display: inline-block !important;
@@ -1437,6 +1448,41 @@ function getSettingsIconUrl(theme) {
         line-height: 1.2 !important;
       }
 
+      /* SPA navigation loading bar: a thin orange indeterminate strip pinned to
+         the very top of the page, shown while an in-app link loads a new view so
+         the user sees activity instead of thinking the page hung and re-clicking. */
+      .sff-nav-loading {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 3px !important;
+        z-index: 2147483647 !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        transition: opacity 0.2s ease !important;
+      }
+
+      .sff-nav-loading.sff-nav-show {
+        opacity: 1 !important;
+      }
+
+      .sff-nav-loading-bar {
+        position: absolute !important;
+        top: 0 !important;
+        left: -45% !important;
+        width: 45% !important;
+        height: 100% !important;
+        background: linear-gradient(90deg, transparent, #fc6d26, transparent) !important;
+        animation: sff-nav-slide 1s linear infinite !important;
+      }
+
+      @keyframes sff-nav-slide {
+        0% { left: -45%; }
+        100% { left: 100%; }
+      }
+
       /* Secondary navigation row for smaller screens */
       .sff-secondary-nav {
         position: relative !important;
@@ -1452,6 +1498,13 @@ function getSettingsIconUrl(theme) {
         box-sizing: border-box !important;
         margin: 0 !important;
       }
+
+      /* Activity pages: group back + filter buttons on the left */
+      .sff-secondary-nav:has(.sff-back-to-feed-btn) {
+        justify-content: flex-start !important;
+      }
+
+      /* Mobile relies on Strava's native "Name - Type" header (no injected type). */
 
       /* Dark theme overrides scoped to the filter panel and secondary nav */
       .sff-clean-panel.sff-theme-dark {
@@ -2070,6 +2123,28 @@ function getSettingsIconUrl(theme) {
         .sff-stats-grid {
           grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
         }
+      }
+
+      .sff-detail-stats {
+        margin: 16px 0 !important;
+        padding: 16px 18px !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e2e5 !important;
+        border-radius: 10px !important;
+        box-sizing: border-box !important;
+      }
+
+      .sff-detail-stats .sff-stats-section-header {
+        color: #242428 !important;
+      }
+
+      /* Hide Strava's native stats/weather/device blocks when our detail grid renders.
+         Target the containers (not inner elements) so mobile-responsive rules can't out-specify us. */
+      body[data-sff-detail-stats] .activity-stats,
+      body[data-sff-detail-stats] .more-stats,
+      body[data-sff-detail-stats] .section.weather,
+      body[data-sff-detail-stats] .device-section {
+        display: none !important;
       }
 
       .sff-notification-bell {
@@ -2833,6 +2908,9 @@ function getSettingsIconUrl(theme) {
             const mobileResponsiveChk = panel.querySelector('.sff-mobileResponsive');
             settings.mobileResponsive = mobileResponsiveChk ? mobileResponsiveChk.checked : settings.mobileResponsive;
 
+            const preventAppOpenChk = panel.querySelector('.sff-preventAppOpen');
+            settings.preventAppOpen = preventAppOpenChk ? preventAppOpenChk.checked : settings.preventAppOpen;
+
             const themeRadio = panel.querySelector('input[name="sff-theme"]:checked');
             settings.theme = themeRadio && themeRadio.value === 'dark' ? 'dark' : 'light';
 
@@ -2888,12 +2966,6 @@ function getSettingsIconUrl(theme) {
 
             // Only create elements on dashboard
             const isDashboardPage = UtilsModule.isOnDashboard();
-            console.log('[SFF-DEBUG] createElements called', {
-                isDashboard: isDashboardPage,
-                pathname: window.location.pathname,
-                existingNav: !!document.querySelector('.sff-secondary-nav'),
-                existingPanel: !!document.querySelector('.sff-clean-panel')
-            });
 
             // Set dashboard attribute for CSS targeting
             if (isDashboardPage) {
@@ -2934,10 +3006,10 @@ function getSettingsIconUrl(theme) {
                 if (settings.compactButtons) {
                     backToFeedBtn.classList.add('sff-compact');
                     backToFeedBtn.innerHTML = '<span class="sff-compact-icon" style="margin-right:0;"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="currentColor"/></svg></span>';
-                    backToFeedBtn.style.cssText = 'margin-right: auto; padding: 0.375rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; height: 32px; width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
+                    backToFeedBtn.style.cssText = 'padding: 0.375rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; height: 32px; width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
                 } else {
                     backToFeedBtn.innerHTML = '← Back to Feed';
-                    backToFeedBtn.style.cssText = 'margin-right: auto; padding: 0.375rem 0.75rem; font-size: 0.875rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; height: 32px; display: inline-flex; align-items: center; border-radius: 4px; font-family: "Roboto", sans-serif; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
+                    backToFeedBtn.style.cssText = 'padding: 0.375rem 0.75rem; font-size: 0.875rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; height: 32px; display: inline-flex; align-items: center; border-radius: 4px; font-family: "Roboto", sans-serif; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
                 }
                 
                 // Add hover effect via JS since it's inline styled
@@ -3058,10 +3130,10 @@ function getSettingsIconUrl(theme) {
                 if (settings.compactButtons) {
                     backToFeedBtn.classList.add('sff-compact');
                     backToFeedBtn.innerHTML = '<span class="sff-compact-icon" style="margin-right:0;"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="currentColor"/></svg></span>';
-                    backToFeedBtn.style.cssText = 'margin-right: auto; padding: 0.375rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; height: 32px; width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
+                    backToFeedBtn.style.cssText = 'padding: 0.375rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; height: 32px; width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
                 } else {
                     backToFeedBtn.innerHTML = '← Back to Feed';
-                    backToFeedBtn.style.cssText = 'margin-right: auto; padding: 0.375rem 0.75rem; font-size: 0.875rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; height: 32px; display: inline-flex; align-items: center; border-radius: 4px; font-family: "Roboto", sans-serif; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
+                    backToFeedBtn.style.cssText = 'padding: 0.375rem 0.75rem; font-size: 0.875rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; height: 32px; display: inline-flex; align-items: center; border-radius: 4px; font-family: "Roboto", sans-serif; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
                 }
                 
                 // Add hover effect
@@ -3196,11 +3268,11 @@ function getSettingsIconUrl(theme) {
                 if (isCompact) {
                     backBtn.classList.add('sff-compact');
                     backBtn.innerHTML = `<span class="sff-compact-icon" style="margin-right:0;">${BACKARROW_SVG}</span>`;
-                    backBtn.style.cssText = 'margin-right: auto; padding: 0.375rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; height: 32px; width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
+                    backBtn.style.cssText = 'padding: 0.375rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; height: 32px; width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
                 } else {
                     backBtn.classList.remove('sff-compact');
                     backBtn.innerHTML = '← Back to Feed';
-                    backBtn.style.cssText = 'margin-right: auto; padding: 0.375rem 0.75rem; font-size: 0.875rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; height: 32px; display: inline-flex; align-items: center; border-radius: 4px; font-family: "Roboto", sans-serif; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
+                    backBtn.style.cssText = 'padding: 0.375rem 0.75rem; font-size: 0.875rem; background: transparent; border: 2px solid #fc5200; color: #fc5200; cursor: pointer; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; height: 32px; display: inline-flex; align-items: center; border-radius: 4px; font-family: "Roboto", sans-serif; transition: background-color 0.15s ease, color 0.15s ease; box-sizing: border-box;';
                 }
             }
 
@@ -3480,14 +3552,12 @@ function getSettingsIconUrl(theme) {
                 // Count unread - more robust check
                 const unreadCount = data.filter(item => item.read === false || item.read === 'false' || !item.read).length;
                 
-                // Update badge
-                if (badge) {
+                // Update badge - only if it still has unread items.
+                // If 0, the mark-all-read handler already cleared it; setting it here
+                // could re-add 'show' via a race when mark_all_read resolves first.
+                if (unreadCount > 0 && badge) {
                     badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-                    if (unreadCount > 0) {
-                        badge.classList.add('show');
-                    } else {
-                        badge.classList.remove('show');
-                    }
+                    badge.classList.add('show');
                 }
                 
                 button.title = unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'Notifications';
@@ -3690,9 +3760,13 @@ function getSettingsIconUrl(theme) {
                                     <input type="checkbox" class="sff-hideAllTags" ${settings.hideAllTags ? 'checked' : ''}>
                                     Hide All Tags
                                 </label>
+                                <label class="sff-chip sff-tags-hide-untagged ${settings.hideUntagged ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideUntagged" ${settings.hideUntagged ? 'checked' : ''}>
+                                    Hide Untagged
+                                </label>
                             </div>
                             <div class="sff-embeds-grid">
-                                ${['Race', 'For a Cause', 'Workout', 'Recovery', 'Commute', 'With Pet', 'With Kid'].map(tag => `
+                                ${['Race', 'For a Cause', 'Workout', 'Recovery', 'Commute', 'Indoor Cycling', 'Long Run', 'Treadmill', 'Competition', 'With Pet', 'With Kid'].map(tag => `
                                     <label class="sff-chip ${settings.activityTags && settings.activityTags.includes(tag) ? 'checked' : ''}">
                                         <input type="checkbox" class="sff-tag-checkbox" data-tag="${tag}" ${settings.activityTags && settings.activityTags.includes(tag) ? 'checked' : ''}>
                                         ${tag}
@@ -3937,18 +4011,6 @@ function getSettingsIconUrl(theme) {
                         Manage your Strava Feed Filter settings.
                     </p>
                     
-                    <!-- Mobile Responsiveness - Hidden (experimental feature, disabled by default)
-                    <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #ddd;">
-                        <div class="sff-label-with-info">
-                            <label class="sff-chip ${settings.mobileResponsive ? 'checked' : ''}">
-                                <input type="checkbox" class="sff-mobileResponsive" ${settings.mobileResponsive ? 'checked' : ''}>
-                                Enable Mobile Responsiveness
-                            </label>
-                            <span class="sff-info-icon" data-info="Makes activity pages mobile-friendly with a compact single-column layout, hides footer clutter, and adds the secondary navigation bar. Responsive design from 350px to 765px.">?</span>
-                        </div>
-                    </div>
-                    -->
-                    
                     <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #333;">Header Settings</h4>
                     
                     <div style="margin-bottom: 7.5px;">
@@ -4046,7 +4108,6 @@ function getSettingsIconUrl(theme) {
                         </div>
                     </div>
                     
-                    <!-- Mobile Responsiveness - Hidden (experimental feature, disabled by default)
                     <div style="margin-bottom: 7.5px;">
                         <div class="sff-label-with-info">
                             <label class="sff-chip ${settings.mobileResponsive ? 'checked' : ''}">
@@ -4056,7 +4117,16 @@ function getSettingsIconUrl(theme) {
                             <span class="sff-info-icon" data-info="Makes activity detail pages mobile-friendly by converting the desktop grid layout into a single-column stack on small screens (≤768px). Also remembers your scroll position on the dashboard so you return to the same spot after viewing an activity.">?</span>
                         </div>
                     </div>
-                    -->
+
+                    <div style="margin-bottom: 7.5px;">
+                        <div class="sff-label-with-info">
+                            <label class="sff-chip ${settings.preventAppOpen ? 'checked' : ''}">
+                                <input type="checkbox" class="sff-preventAppOpen" ${settings.preventAppOpen ? 'checked' : ''}>
+                                Hide "Get the app" banners
+                            </label>
+                            <span class="sff-info-icon" data-info="Hides Strava's in-page app promo banners and strips the smart-app-banner tags that make mobile browsers suggest opening Strava in its app. Note: this cannot suppress the Android/iOS system 'Open in app?' dialog when tapping links - that is controlled by your browser's own setting (in Firefox: Settings > General > Open links in apps > Never).">?</span>
+                        </div>
+                    </div>
                     
                     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
                     
@@ -4705,7 +4775,7 @@ function getSettingsIconUrl(theme) {
                     if (e.target.classList.contains('sff-hideAllTags')) {
                         const isChecked = e.target.checked;
                         settings.hideAllTags = isChecked;
-                        const allTags = ['Race', 'For a Cause', 'Workout', 'Recovery', 'Commute', 'With Pet', 'With Kid'];
+                        const allTags = ['Race', 'For a Cause', 'Workout', 'Recovery', 'Commute', 'Indoor Cycling', 'Long Run', 'Treadmill', 'Competition', 'With Pet', 'With Kid'];
                         settings.activityTags = isChecked ? [...allTags] : [];
                         const chip = e.target.closest('.sff-chip');
                         if (chip) chip.classList.toggle('checked', isChecked);
@@ -4713,6 +4783,14 @@ function getSettingsIconUrl(theme) {
                             cb.checked = isChecked;
                             cb.closest('.sff-chip')?.classList.toggle('checked', isChecked);
                         });
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.filterActivities();
+                    }
+
+                    // Activity tags - Hide Untagged
+                    if (e.target.classList.contains('sff-hideUntagged')) {
+                        settings.hideUntagged = e.target.checked;
+                        e.target.closest('.sff-chip')?.classList.toggle('checked', e.target.checked);
                         UtilsModule.saveSettings(settings);
                         LogicModule.filterActivities();
                     }
@@ -4881,6 +4959,12 @@ function getSettingsIconUrl(theme) {
                         settings.mobileResponsive = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         applyMobileResponsive();
+                    }
+                    // Hide "Get the app" banners
+                    if (e.target.classList.contains('sff-preventAppOpen')) {
+                        settings.preventAppOpen = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.setupAppOpenGuard();
                     }
                     if (e.target.classList.contains('sff-hideAthleteJoinedClub')) {
                         settings.hideAthleteJoinedClub = e.target.checked;
@@ -5645,12 +5729,34 @@ function getSettingsIconUrl(theme) {
                             } catch (e) {
                                 // ignore pause errors
                             }
+                            // Close the native fullscreen player mobile browsers open for
+                            // autoplaying videos that lack a playsinline attribute
+                            try {
+                                if (document.fullscreenElement === video && document.exitFullscreen) {
+                                    document.exitFullscreen();
+                                } else if (video.webkitIsFullScreen && video.webkitExitFullscreen) {
+                                    video.webkitExitFullscreen();
+                                }
+                            } catch (e) {
+                                // ignore fullscreen exit errors
+                            }
                         };
+
+                        // Set inline-playback attributes at attach time, before any play can
+                        // start: without playsinline, mobile browsers take autoplaying videos
+                        // over in their native fullscreen player
+                        video.playsInline = true;
+                        video.setAttribute('playsinline', '');
+                        video.setAttribute('webkit-playsinline', '');
 
                         video.addEventListener('pointerdown', markUserPlayIntent, true);
                         video.addEventListener('touchstart', markUserPlayIntent, true);
                         video.addEventListener('click', markUserPlayIntent, true);
                         video.addEventListener('play', blockAutoPlay, true);
+                        // 'play' fires only once, before our listener can attach on lazily
+                        // mounted mobile videos; 'timeupdate' keeps firing while playing,
+                        // so it acts as a self-healing backstop.
+                        video.addEventListener('timeupdate', blockAutoPlay, true);
 
                         video.__sffAutoplayGuardBound = true;
                     }
@@ -6380,6 +6486,12 @@ function getSettingsIconUrl(theme) {
                     }
                 }
 
+                // Hide activities without any tags
+                if (!shouldHide && settings.hideUntagged) {
+                    const tagElsUntagged = activity.querySelectorAll('[data-testid="tag"]');
+                    if (tagElsUntagged.length === 0) shouldHide = true;
+                }
+
                 // Activity tag filtering
                 if (!shouldHide && settings.activityTags && settings.activityTags.length > 0) {
                     const tagEls = activity.querySelectorAll('[data-testid="tag"]');
@@ -6780,7 +6892,46 @@ function getSettingsIconUrl(theme) {
                 }
             }, 250);
 
+            // Feed scroll-anchor: remember the top-most visible entry so a
+            // load-more re-render (which can jump the viewport up and make you
+            // lose your place) can be corrected. Captured continuously on scroll,
+            // applied only when new feed entries are added and only for large
+            // shifts, so it is a no-op during ordinary scrolling.
+            let anchorEl = null;
+            let anchorTop = 0;
+            const refreshAnchor = () => {
+                const entries = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                for (const e of entries) {
+                    if (e.offsetParent === null) continue; // hidden by filter or unrendered
+                    const r = e.getBoundingClientRect();
+                    if (r.bottom > 0) { anchorEl = e; anchorTop = r.top; return; }
+                }
+            };
+            let anchorQueued = false;
+            const onScrollAnchor = () => {
+                if (anchorQueued) return;
+                anchorQueued = true;
+                requestAnimationFrame(() => { anchorQueued = false; refreshAnchor(); });
+            };
+            const scrollByPage = (dy) => {
+                const cand = [document.documentElement, document.body,
+                    document.querySelector('#view'), document.querySelector('.view')].filter(Boolean);
+                let best = null, bestTop = 0;
+                for (const el of cand) { if ((el.scrollTop || 0) > bestTop) { bestTop = el.scrollTop; best = el; } }
+                if (window.scrollY > bestTop) { try { window.scrollBy(0, dy); } catch (e) {} return; }
+                if (best) { try { best.scrollBy(0, dy); } catch (e) {} return; }
+                try { window.scrollBy(0, dy); } catch (e) {}
+            };
+            const restoreAnchor = () => {
+                if (!anchorEl || !anchorEl.isConnected || anchorEl.offsetParent === null) { refreshAnchor(); return; }
+                const delta = anchorEl.getBoundingClientRect().top - anchorTop;
+                // Only fight a real "jump" (large shift); small drift is normal scrolling.
+                if (Math.abs(delta) > 120) scrollByPage(delta);
+                refreshAnchor();
+            };
+
             const observer = new MutationObserver((mutations) => {
+                let feedAdded = false;
                 for (const m of mutations) {
                     if (!m.addedNodes || m.addedNodes.length === 0) continue;
                     for (const node of m.addedNodes) {
@@ -6789,15 +6940,22 @@ function getSettingsIconUrl(theme) {
                             (node.matches && node.matches('.activity, .feed-entry, [data-testid="web-feed-entry"]')) ||
                             node.querySelector?.('.activity, .feed-entry, [data-testid="web-feed-entry"]')
                         ) {
+                            feedAdded = true;
                             debouncedFilter();
                             break;
                         }
                     }
                 }
+                if (feedAdded) {
+                    // Give Strava a frame to finish layout, then snap back to the anchor.
+                    requestAnimationFrame(() => requestAnimationFrame(restoreAnchor));
+                }
             });
             observer.observe(document.body, { childList: true, subtree: true });
 
             window.addEventListener('scroll', debouncedFilter, { passive: true });
+            window.addEventListener('scroll', onScrollAnchor, { passive: true });
+            document.addEventListener('scroll', onScrollAnchor, { passive: true, capture: true });
             window.__sffObserver = observer;
         },
 
@@ -7047,6 +7205,29 @@ function getSettingsIconUrl(theme) {
                 }
             }
             
+            // Detail-page context: no feed element, so read start time from the fetched doc.
+            // Strava's detail <time> has no datetime attr; the date lives in the text, e.g.
+            // "7:18 AM on Friday, October 2, 2026".
+            if (!activityElement) {
+                const tEl = doc.querySelector('time');
+                if (tEl) {
+                    const full = tEl.textContent?.trim().replace(/\s+/g, ' ');
+                    if (full) {
+                        // Show just the clock time (e.g. "7:18 AM") to match the feed style
+                        const timeMatch = full.match(/\d{1,2}:\d{2}\s*(?:AM|PM)?/i);
+                        stats['__ActivityStart'] = (timeMatch ? timeMatch[0] : full).trim();
+
+                        let startDate = tEl.getAttribute('datetime') ? new Date(tEl.getAttribute('datetime')) : null;
+                        if (!startDate || isNaN(startDate.getTime())) {
+                            const datePart = full.match(/[A-Z][a-z]+ \d{1,2},? \d{4}/);
+                            const tp = full.match(/\d{1,2}:\d{2}\s*(?:AM|PM)/i);
+                            if (datePart && tp) startDate = new Date(`${datePart[0].replace(/,/g, '')} ${tp[0]}`);
+                        }
+                        if (startDate && !isNaN(startDate.getTime())) stats['__ActivityStartDate'] = startDate;
+                    }
+                }
+            }
+            
             // Method 1: Extract from inline-stats (ul li structure)
             doc.querySelectorAll('.inline-stats li').forEach(li => {
                 const strong = li.querySelector('strong');
@@ -7089,15 +7270,15 @@ function getSettingsIconUrl(theme) {
                 }
             });
             
-            // Method 2b: Extract from row/spans structure - used in Runs
+            // Method 2b: Extract from row/spans structure - used in Runs.
+            // A single .row can hold multiple label/value pairs (e.g. Elevation + Calories).
             doc.querySelectorAll('.more-stats .row').forEach(row => {
-                const spans5 = row.querySelector('.spans5');
-                const spans3 = row.querySelector('.spans3');
-                
-                if (spans5 && spans3) {
-                    const label = spans5.textContent?.trim().replace(/\s+/g, ' ');
-                    const value = spans3.textContent?.trim().replace(/\s+/g, ' ');
-                    
+                const labels = row.querySelectorAll('.spans5');
+                const values = row.querySelectorAll('.spans3');
+                const n = Math.min(labels.length, values.length);
+                for (let i = 0; i < n; i++) {
+                    const label = labels[i].textContent?.trim().replace(/\s+/g, ' ');
+                    const value = values[i].textContent?.trim().replace(/\s+/g, ' ');
                     if (label && value) {
                         stats[label] = value;
                     }
@@ -7246,44 +7427,8 @@ function getSettingsIconUrl(theme) {
             const statsContainer = document.createElement('div');
             statsContainer.className = 'sff-expanded-stats';
 
-            // Build stats HTML
-            let statsHTML = '<div class="sff-stats-grid">';
-            
-            organizedStats.forEach(stat => {
-                if (stat.isHeader) {
-                    // Close current grid and add section header
-                    statsHTML += '</div>';
-                    if (stat.weatherIcon && stat.weatherCondition) {
-                        statsHTML += `<div class="sff-stats-section-header">${stat.label}: <div class="${stat.weatherIcon}" style="display: inline-block; width: 24px; height: 24px; margin: 0 4px; vertical-align: middle;"></div>${stat.weatherCondition}</div>`;
-                    } else if (stat.weatherIcon) {
-                        statsHTML += `<div class="sff-stats-section-header">${stat.label}: <div class="${stat.weatherIcon}" style="display: inline-block; width: 24px; height: 24px; margin-left: 4px; vertical-align: middle;"></div></div>`;
-                    } else {
-                        statsHTML += `<div class="sff-stats-section-header">${stat.label}</div>`;
-                    }
-                    statsHTML += '<div class="sff-stats-grid">';
-                } else {
-                    statsHTML += '<div class="sff-stat-item">';
-                    statsHTML += `<span class="sff-stat-label">${stat.label}`;
-                    if (stat.info) {
-                        statsHTML += ` <span class="sff-info-icon" title="${stat.info}">?</span>`;
-                    }
-                    statsHTML += '</span>';
-                    
-                    if (stat.start && stat.end) {
-                        statsHTML += `<span class="sff-stat-value"><b>Start:</b> ${stat.start}</span>`;
-                        statsHTML += `<span class="sff-stat-subvalue"><b>End:</b> ${stat.end}</span>`;
-                    } else if (stat.avg && stat.max) {
-                        statsHTML += `<span class="sff-stat-value"><b>Avg:</b> ${stat.avg}</span>`;
-                        statsHTML += `<span class="sff-stat-subvalue"><b>Max:</b> ${stat.max}</span>`;
-                    } else {
-                        statsHTML += `<span class="sff-stat-value">${stat.value}</span>`;
-                    }
-                    
-                    statsHTML += '</div>';
-                }
-            });
-            
-            statsHTML += '</div>';
+            // Build stats HTML (grid layout shared with the activity detail page)
+            let statsHTML = this.buildStatsGridHTML(organizedStats);
             
             // Add a "Hide stats" button at the bottom
             statsHTML += '<div style="text-align: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">';
@@ -7350,6 +7495,402 @@ function getSettingsIconUrl(theme) {
             }
 
             return statsContainer;
+        },
+
+        buildStatsGridHTML(organizedStats) {
+            let statsHTML = '<div class="sff-stats-grid">';
+            organizedStats.forEach(stat => {
+                if (stat.isHeader) {
+                    statsHTML += '</div>';
+                    if (stat.weatherIcon && stat.weatherCondition) {
+                        statsHTML += `<div class="sff-stats-section-header">${stat.label}: <div class="${stat.weatherIcon}" style="display: inline-block; width: 24px; height: 24px; margin: 0 4px; vertical-align: middle;"></div>${stat.weatherCondition}</div>`;
+                    } else if (stat.weatherIcon) {
+                        statsHTML += `<div class="sff-stats-section-header">${stat.label}: <div class="${stat.weatherIcon}" style="display: inline-block; width: 24px; height: 24px; margin-left: 4px; vertical-align: middle;"></div></div>`;
+                    } else {
+                        statsHTML += `<div class="sff-stats-section-header">${stat.label}</div>`;
+                    }
+                    statsHTML += '<div class="sff-stats-grid">';
+                } else {
+                    statsHTML += '<div class="sff-stat-item">';
+                    statsHTML += `<span class="sff-stat-label">${stat.label}`;
+                    if (stat.info) {
+                        statsHTML += ` <span class="sff-info-icon" title="${stat.info}" data-info="${stat.info}">?</span>`;
+                    }
+                    statsHTML += '</span>';
+                    if (stat.start && stat.end) {
+                        statsHTML += `<span class="sff-stat-value"><b>Start:</b> ${stat.start}</span>`;
+                        statsHTML += `<span class="sff-stat-subvalue"><b>End:</b> ${stat.end}</span>`;
+                    } else if (stat.avg && stat.max) {
+                        statsHTML += `<span class="sff-stat-value"><b>Avg:</b> ${stat.avg}</span>`;
+                        statsHTML += `<span class="sff-stat-subvalue"><b>Max:</b> ${stat.max}</span>`;
+                    } else {
+                        statsHTML += `<span class="sff-stat-value">${stat.value}</span>`;
+                    }
+                    statsHTML += '</div>';
+                }
+            });
+            statsHTML += '</div>';
+            return statsHTML;
+        },
+
+        // Tap handler for "?" icons outside the settings panel (stats grid):
+        // touch devices have no hover, so the title tooltip never shows.
+        setupStatsInfoTap() {
+            if (window.__sffStatsInfoTapSetup) return;
+            window.__sffStatsInfoTapSetup = true;
+            document.addEventListener('click', (event) => {
+                const icon = event.target.closest('.sff-info-icon[data-info]');
+                // Panel icons already have their own click handler
+                if (!icon || icon.closest('.sff-clean-panel')) return;
+                event.stopPropagation();
+
+                const existing = document.querySelector('.sff-info-box');
+                const sameIcon = existing && existing.__sffSourceIcon === icon;
+                if (existing) existing.remove();
+                if (sameIcon) return; // second tap on the same icon = close
+
+                const box = document.createElement('div');
+                box.className = 'sff-info-box';
+                box.innerHTML = `
+                    <div class="sff-info-box-content">${icon.getAttribute('data-info')}</div>
+                    <button class="sff-info-box-close" aria-label="Close">×</button>
+                `;
+                document.body.appendChild(box);
+                box.__sffSourceIcon = icon;
+
+                const rect = icon.getBoundingClientRect();
+                let left = rect.left - 20;
+                if (left + 330 > window.innerWidth - 10) left = window.innerWidth - 340;
+                if (left < 10) left = 10;
+                let top = rect.bottom + 10;
+                if (top + 200 > window.innerHeight) top = Math.max(10, rect.top - 210);
+                box.style.left = `${left}px`;
+                box.style.top = `${top}px`;
+
+                box.querySelector('.sff-info-box-close').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    box.remove();
+                });
+            });
+        },
+
+        // Strip smart-app-banner meta tags and flag the body to hide Strava's
+        // in-page app promo banners. Does NOT affect the OS-level
+        // "Open in app?" link dialog - that is a browser/Android setting.
+        preventAppOpenPrompts() {
+            try {
+                if (!settings.enabled || !settings.preventAppOpen) return;
+                document.querySelectorAll('meta[name="apple-itunes-app"], meta[name="google-play-app"]').forEach(m => m.remove());
+                document.body.classList.add('sff-no-app-promo');
+            } catch (e) { /* preventAppOpenPrompts error */ }
+        },
+
+        setupAppOpenGuard() {
+            if (!settings.preventAppOpen) {
+                document.body.classList.remove('sff-no-app-promo');
+                return;
+            }
+            this.preventAppOpenPrompts();
+            if (window.__sffAppOpenGuardSetup) return;
+            window.__sffAppOpenGuardSetup = true;
+            try {
+                // React can re-insert the meta tags on navigation; strip them again
+                const obs = new MutationObserver(() => this.preventAppOpenPrompts());
+                if (document.head) obs.observe(document.head, { childList: true });
+                if (document.body) obs.observe(document.body, { childList: true });
+            } catch (e) { /* app-open observer error */ }
+        },
+
+        // Persistent horizontal-scroll indicator + mouse-drag panning for the
+        // mobile-mode scroll strips (elevation chart, segment list). Mobile
+        // browsers fade their overlay scrollbars when the finger lifts, so we
+        // draw our own always-visible bar synced to scrollLeft, and let desktop
+        // users pan by dragging anywhere in the strip with the mouse.
+        setupMobilePanHelpers() {
+            if (window.__sffPanSetup) { if (window.__sffPanScan) window.__sffPanScan(); return; }
+            window.__sffPanSetup = true;
+
+            // Elements that scroll horizontally on narrow screens. The elevation
+            // chart is a div scroller; the segment list is a <table> which cannot
+            // host a div child, so its bar is pinned to the parent section.
+            const SELECTORS = '#elevation-chart, table.segments, .segments-list';
+
+            const floaters = []; // viewport-pinned bar clones for tall sections
+
+            const layoutThumb = (bar, thumb, scroller) => {
+                const max = scroller.scrollWidth - scroller.clientWidth;
+                const trackW = bar.clientWidth || 0;
+                if (max <= 1 || !trackW) return;
+                const ratio = scroller.clientWidth / scroller.scrollWidth;
+                thumb.style.width = Math.max(24, Math.round(trackW * ratio)) + 'px';
+                const room = Math.max(0, trackW - thumb.offsetWidth);
+                thumb.style.left = Math.round((scroller.scrollLeft / max) * room) + 'px';
+            };
+
+            // A tall section's own bar sits at its bottom, off-screen until you
+            // reach the end. While that happens, show a fixed clone pinned to the
+            // viewport bottom so the pan affordance is always visible.
+            const updateFloaters = () => {
+                const vh = window.innerHeight || document.documentElement.clientHeight;
+                for (let i = floaters.length - 1; i >= 0; i--) {
+                    const en = floaters[i];
+                    if (!en.scroller.isConnected) { en.bar.remove(); floaters.splice(i, 1); continue; }
+                    const rect = en.scroller.getBoundingClientRect();
+                    const overflows = en.scroller.scrollWidth - en.scroller.clientWidth > 1;
+                    // Show whenever the section is even partly on screen and still
+                    // overflows horizontally — the bar is the cue that panning
+                    // reveals more, so it appears the moment you see segments.
+                    const visible = rect.top < vh - 20 && rect.bottom > 20;
+                    const show = sffIsMobileWidth() && overflows && visible;
+                    if (!show) { en.bar.style.display = 'none'; continue; }
+                    en.bar.style.display = 'block';
+                    en.bar.style.left = Math.max(8, Math.round(rect.left) + 8) + 'px';
+                    en.bar.style.width = Math.max(40, Math.round(rect.width) - 16) + 'px';
+                    layoutThumb(en.bar, en.thumb, en.scroller);
+                }
+            };
+
+            const buildIndicator = (host, scroller, isTable) => {
+                if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+                if (isTable) {
+                    // Segments list: the floating bar is the sole indicator (an
+                    // in-flow bar would sit at the bottom of a long list, off-screen
+                    // for most of it). Fade the section edges as a secondary cue.
+                    const fade = 'linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent)';
+                    host.style.setProperty('-webkit-mask-image', fade);
+                    host.style.setProperty('mask-image', fade);
+                    const fbar = document.createElement('div');
+                    fbar.className = 'sff-pan-indicator sff-pan-float';
+                    const fthumb = document.createElement('div');
+                    fthumb.className = 'sff-pan-thumb';
+                    fbar.appendChild(fthumb);
+                    document.body.appendChild(fbar);
+                    floaters.push({ scroller, bar: fbar, thumb: fthumb });
+                    scroller.addEventListener('scroll', updateFloaters, { passive: true });
+                    updateFloaters();
+                    return;
+                }
+                // Elevation chart: short, so a persistent bar pinned inside the
+                // scroller, counter-shifted by scrollLeft so it does not drift.
+                const old = host.querySelector(':scope > .sff-pan-indicator');
+                if (old) old.remove(); // scroller re-rendered; drop the stale bar
+                const ind = document.createElement('div');
+                ind.className = 'sff-pan-indicator';
+                const thumb = document.createElement('div');
+                thumb.className = 'sff-pan-thumb';
+                ind.appendChild(thumb);
+                host.appendChild(ind);
+                const sync = () => {
+                    const max = scroller.scrollWidth - scroller.clientWidth;
+                    if (max <= 1) { ind.style.display = 'none'; return; }
+                    ind.style.display = 'block';
+                    ind.style.transform = 'translateX(' + scroller.scrollLeft + 'px)';
+                    layoutThumb(ind, thumb, scroller);
+                };
+                scroller.addEventListener('scroll', sync, { passive: true });
+                sync();
+            };
+
+            const bindDrag = (scroller) => {
+                if (scroller.__sffPanBound) return;
+                scroller.__sffPanBound = true;
+                // Desktop: pan by dragging anywhere in the strip with the mouse
+                scroller.addEventListener('mousedown', (e) => {
+                    if (e.button !== 0) return;
+                    const startX = e.clientX, startScroll = scroller.scrollLeft;
+                    let dragging = false;
+                    const onMove = (ev) => {
+                        const dx = ev.clientX - startX;
+                        if (!dragging && Math.abs(dx) > 3) dragging = true;
+                        if (dragging) { scroller.scrollLeft = startScroll - dx; if (ev.cancelable) ev.preventDefault(); }
+                    };
+                    const onUp = () => {
+                        window.removeEventListener('mousemove', onMove);
+                        window.removeEventListener('mouseup', onUp);
+                        scroller.style.cursor = '';
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                    scroller.style.cursor = 'grabbing';
+                });
+            };
+
+            const enhance = (el) => {
+                if (!el || el.__sffPanDone) return;
+                if (el.scrollWidth <= el.clientWidth + 1) return; // not overflowing yet
+                if (el.tagName === 'TABLE') {
+                    const host = el.parentElement;
+                    if (!host) return;
+                    buildIndicator(host, el, true); // segments: floating bar only
+                } else {
+                    buildIndicator(el, el, false); // chart: in-flow bar only
+                }
+                bindDrag(el);
+                el.__sffPanDone = true;
+            };
+
+            const scan = () => {
+                if (!sffIsMobileWidth()) { updateFloaters(); return; }
+                document.querySelectorAll(SELECTORS).forEach(enhance);
+                updateFloaters();
+            };
+            window.__sffPanScan = scan;
+
+            scan();
+            // The chart / segment list render after init on mobile; retry so the
+            // bar appears once their content actually overflows.
+            [300, 900, 1800, 3000].forEach((t) => setTimeout(scan, t));
+            window.addEventListener('resize', scan, { passive: true });
+            // Capture-phase: Strava scrolls inside #view/.view, not the window, so
+            // a window-only scroll listener would never fire on those pages.
+            document.addEventListener('scroll', updateFloaters, { passive: true, capture: true });
+            if (window.MutationObserver) {
+                // Catch Pace/GAP re-renders that wipe the bar and late segments
+                let pending = false;
+                new MutationObserver(() => {
+                    if (pending) return;
+                    pending = true;
+                    setTimeout(() => { pending = false; scan(); }, 250);
+                }).observe(document.body, { childList: true, subtree: true });
+            }
+        },
+
+        // Square orange floating button that scrolls a long mobile page back to
+        // the top; appears once the user has scrolled down past ~80% of a screen.
+        setupBackToTopButton() {
+            if (window.__sffBttSetup) return;
+            window.__sffBttSetup = true;
+            try {
+                const btn = document.createElement('button');
+                btn.className = 'sff-back-to-top';
+                btn.type = 'button';
+                btn.setAttribute('aria-label', 'Back to top');
+                btn.innerHTML = '&#8593;';
+                // Style inline so the button also works on the desktop site, where
+                // the mobile-only stylesheet (body[data-sff-mobile]) is not applied.
+                btn.style.cssText = 'position:fixed;right:14px;bottom:20px;width:44px;height:44px;'
+                    + 'box-sizing:border-box;display:none;align-items:center;justify-content:center;'
+                    + 'padding:0;background:#fc6d26;color:#ffffff;border:none;border-radius:8px;'
+                    + 'font-size:22px;line-height:1;cursor:pointer;z-index:2147483647;'
+                    + 'box-shadow:0 2px 8px rgba(0,0,0,0.35);';
+                document.body.appendChild(btn);
+                // Read the page's vertical scroll from the known scrollers
+                // directly. The probe shows Strava mobile scrolls <body> (window.scrollY
+                // stays 0); we must NOT read e.target here, or a horizontal pan of the
+                // segment table (target=TABLE, scrollTop 0) would zero the value and
+                // make the button flicker out.
+                const pageScrollY = () => {
+                    const de = document.documentElement;
+                    const b = document.body;
+                    let y = window.scrollY || 0;
+                    if (de) y = Math.max(y, de.scrollTop || 0);
+                    if (b) y = Math.max(y, b.scrollTop || 0);
+                    const named = document.querySelector('#view') || document.querySelector('.view');
+                    if (named) y = Math.max(y, named.scrollTop || 0);
+                    return y;
+                };
+                const onScroll = () => {
+                    // Back-to-top belongs on activity detail pages only — never the
+                    // dashboard feed (that page already has its own infinite-scroll UI).
+                    if (UtilsModule.isOnDashboard()) { btn.style.display = 'none'; return; }
+                    // Show once the page has scrolled ~half a screen, on desktop and
+                    // mobile alike (no width gate).
+                    btn.style.display = pageScrollY() > window.innerHeight * 0.5 ? 'flex' : 'none';
+                };
+                // Capture so body / inner-container scrolling also counts
+                document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+                window.addEventListener('resize', onScroll, { passive: true });
+                btn.addEventListener('click', () => {
+                    const de = document.documentElement;
+                    const b = document.body;
+                    [b, de, document.querySelector('#view'), document.querySelector('.view')].forEach((el) => {
+                        if (el && el.scrollHeight - el.clientHeight > 1) {
+                            try { el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e2) { el.scrollTop = 0; }
+                        }
+                    });
+                    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e2) { window.scrollTo(0, 0); }
+                });
+                onScroll();
+            } catch (e) { /* setupBackToTopButton error */ }
+        },
+
+        async renderDetailPageStats() {
+            try {
+                if (!settings.enabled) return;
+                if (!UtilsModule.isOnActivityPage()) return;
+                let mode = settings.seeMoreButtonMode;
+                if (!mode) mode = settings.showSeeMoreButton === false ? 'never' : 'always';
+                if (mode === 'never') return;
+                if (document.querySelector('.sff-detail-stats')) return;
+
+                const activityId = window.location.pathname.match(/\/activities\/(\d+)/)?.[1];
+                if (!activityId) return;
+
+                const stats = await this.fetchActivityStats(activityId, null);
+                const organized = this.organizeStats(stats);
+                if (organized.length === 0) return;
+
+                const wrap = document.createElement('div');
+                wrap.className = 'sff-detail-stats';
+                wrap.innerHTML = this.buildStatsGridHTML(organized);
+
+                // Place our grid right after the activity header (owner/title), then hide native duplicates.
+                const summaryRow = document.querySelector('.activity-summary-container');
+                if (summaryRow && summaryRow.parentElement) {
+                    summaryRow.after(wrap);
+                } else {
+                    const native = document.querySelector('.activity-stats')
+                        || document.querySelector('.inline-stats');
+                    const anchor = native ? (native.closest('.row') || native.parentElement) : null;
+                    if (anchor && anchor.parentElement) {
+                        anchor.after(wrap);
+                    } else {
+                        (document.querySelector('.page') || document.body).appendChild(wrap);
+                    }
+                }
+                document.body.setAttribute('data-sff-detail-stats', 'true');
+            } catch (e) {
+                // renderDetailPageStats error
+            }
+        },
+
+        ensureDetailPageTitle(attempt) {
+            attempt = attempt || 0;
+            try {
+                if (!settings.enabled) return;
+                if (!UtilsModule.isOnActivityPage()) return;
+                const title = document.querySelector('#heading header .title');
+                // Wait for Strava's native "Name - Type" header to render
+                if (!title && attempt < 10) {
+                    setTimeout(() => this.ensureDetailPageTitle(attempt + 1), 300);
+                    return;
+                }
+                if (!title) return;
+                this._fitHeaderTitle(title);
+                // Strava can append the sport type a beat later; re-fit to catch it
+                if (attempt === 0) {
+                    setTimeout(() => { const t = document.querySelector('#heading header .title'); if (t) this._fitHeaderTitle(t); }, 600);
+                    setTimeout(() => { const t = document.querySelector('#heading header .title'); if (t) this._fitHeaderTitle(t); }, 1400);
+                }
+            } catch (e) {
+                // ensureDetailPageTitle error
+            }
+        },
+
+        _fitHeaderTitle(title) {
+            try {
+                title.style.fontSize = '';
+                let size = parseFloat(getComputedStyle(title).fontSize) || 16;
+                const min = 11;
+                let guard = 0;
+                while (title.scrollWidth > title.clientWidth + 1 && size > min && guard < 40) {
+                    size -= 0.5;
+                    title.style.fontSize = size + 'px';
+                    guard++;
+                }
+            } catch (e) {
+                // _fitHeaderTitle error
+            }
         },
 
         organizeStats(rawStats) {
@@ -7743,8 +8284,9 @@ function getSettingsIconUrl(theme) {
     let mobileStyleEl = null;
 
     const SFF_MOBILE_ATTR = 'data-sff-mobile';
-    const SFF_TINY_VERTICAL_SCROLL_THRESHOLD = 3;
     let sffLastTouchY = null;
+    let sffTouchStartX = 0;
+    let sffTouchStartY = 0;
 
     // Strava forces a min-width on the viewport, so window.innerWidth and CSS
     // media queries never reflect the real browser window size.  We use
@@ -7756,7 +8298,6 @@ function getSettingsIconUrl(theme) {
     }
 
     function injectMobileResponsiveCSS() {
-        console.log('[SFF-DEBUG] injectMobileResponsiveCSS called, existing:', !!mobileStyleEl);
         if (mobileStyleEl) return; // Already injected
         // Targeted mobile CSS — works WITH Strava's layout instead of fighting it.
         // No @media query — the attribute is only set when outerWidth <= breakpoint.
@@ -7828,8 +8369,34 @@ function getSettingsIconUrl(theme) {
 
             body[data-sff-mobile] section#heading header,
             body[data-sff-mobile] #heading header {
-                padding: 0 !important;
-                margin-bottom: 2px !important;
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                height: auto !important;
+                min-height: 0 !important;
+                padding: 8px 0 !important;
+                margin-bottom: 4px !important;
+                border-bottom: 1px solid #ececee !important;
+                gap: 8px !important;
+            }
+
+            /* Owner name + type on a single line; shrinks/ellipsizes to fit */
+            body[data-sff-mobile] #heading header h2 {
+                width: auto !important;
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                margin: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+
+            body[data-sff-mobile] #heading header .title {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
             }
 
             /* Compact title and badge */
@@ -7897,13 +8464,21 @@ function getSettingsIconUrl(theme) {
             body[data-sff-mobile] .details-container .avatar {
                 float: none !important;
                 flex-shrink: 0 !important;
-                width: 40px !important;
-                height: 40px !important;
+                width: 80px !important;
+                height: 80px !important;
+            }
+
+            /* Strava's Avatar component (hashed Avatar--* classes) renders an
+               "xlarge" 100px-tall wrapper; size the whole chain so the gray
+               circle matches the image instead of a tall egg. */
+            body[data-sff-mobile] .details-container .avatar [class*="Avatar--"] {
+                width: 80px !important;
+                height: 80px !important;
             }
 
             body[data-sff-mobile] .details-container .avatar img {
-                width: 40px !important;
-                height: 40px !important;
+                width: 80px !important;
+                height: 80px !important;
                 border-radius: 50% !important;
             }
 
@@ -7912,6 +8487,12 @@ function getSettingsIconUrl(theme) {
                 overflow: hidden !important;
                 flex: 1 !important;
                 text-align: left !important;
+                padding-left: 0 !important; /* legacy space for the floated desktop avatar */
+            }
+
+            /* Date/location line must wrap on narrow screens instead of clipping */
+            body[data-sff-mobile] .details time {
+                white-space: normal !important;
             }
 
             /* ---- Social/sharing row ---- */
@@ -7926,19 +8507,37 @@ function getSettingsIconUrl(theme) {
                 margin: 2px 0 !important;
             }
 
+            /* Keep the kudos/comments microfrontend from overflowing the header */
+            body[data-sff-mobile] #heading .social {
+                display: flex !important;
+                flex: 0 0 auto !important;
+                width: auto !important; /* override the generic .social { width:100% } so the name can grow */
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+            }
+
+            body[data-sff-mobile] #heading .social > * {
+                float: none !important;
+            }
+
+            /* Hide the share/embed button to reclaim horizontal space */
+            body[data-sff-mobile] #heading .social .embed {
+                display: none !important;
+            }
+
             /* ---- Inline stats responsive ---- */
             body[data-sff-mobile] ul.inline-stats {
-                display: flex !important;
-                flex-wrap: wrap !important;
-                gap: 4px !important;
-                padding: 2px 0 !important;
-                margin: 2px 0 !important;
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px 12px !important;
+                padding: 4px 0 !important;
+                margin: 4px 0 !important;
             }
 
             body[data-sff-mobile] ul.inline-stats li {
-                flex: 1 1 auto !important;
-                min-width: 70px !important;
-                padding: 4px !important;
+                min-width: 0 !important;
+                padding: 2px 4px !important;
             }
 
             body[data-sff-mobile] .inline-stats strong {
@@ -8011,13 +8610,161 @@ function getSettingsIconUrl(theme) {
                 overflow-x: auto !important;
             }
 
+            /* The 960px-wide chart SVG has no viewBox so it cannot scale down;
+               exempt it from the universal max-width clamp and let it scroll
+               horizontally inside its container instead of being clipped */
+            body[data-sff-mobile] #elevation-profile svg,
+            body[data-sff-mobile] #elevation-chart svg {
+                max-width: none !important;
+            }
+
+            /* Hide the native scrollbar in mobile mode. On desktop it is an
+               always-on classic bar (redundant with ours); on mobile it is an
+               overlay that fades out the moment the finger lifts. We draw our
+               own persistent indicator instead (.sff-pan-indicator below). */
+            body[data-sff-mobile] #elevation-chart,
+            body[data-sff-mobile] #elevation-profile,
+            body[data-sff-mobile] .segments-list,
+            body[data-sff-mobile] table.segments {
+                scrollbar-width: none;
+            }
+            body[data-sff-mobile] #elevation-chart::-webkit-scrollbar,
+            body[data-sff-mobile] #elevation-profile::-webkit-scrollbar,
+            body[data-sff-mobile] .segments-list::-webkit-scrollbar,
+            body[data-sff-mobile] table.segments::-webkit-scrollbar {
+                display: none;
+                width: 0;
+                height: 0;
+            }
+            body[data-sff-mobile] #elevation-profile {
+                position: relative;
+                mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+                -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+            }
+
+            /* Persistent pan indicator: our own always-visible bar synced to
+               the scroller's position (see LogicModule.setupMobilePanHelpers) */
+            body[data-sff-mobile] .sff-pan-indicator {
+                position: absolute;
+                left: 8px;
+                right: 8px;
+                bottom: 4px;
+                height: 6px;
+                border-radius: 3px;
+                background: rgba(0, 0, 0, 0.08);
+                z-index: 10;
+                pointer-events: none;
+            }
+            body[data-sff-mobile] .sff-pan-thumb {
+                position: absolute;
+                top: 0;
+                height: 100%;
+                border-radius: 3px;
+                background: rgba(252, 109, 38, 0.85);
+            }
+            /* Floating clone pinned to the viewport bottom for tall sections
+               (left/width/display are set from JS) */
+            body[data-sff-mobile] .sff-pan-float {
+                position: fixed;
+                bottom: 6px;
+                left: 8px;
+                right: auto;
+                display: none;
+                z-index: 2147483646;
+            }
+            /* Square orange back-to-top button */
+            body[data-sff-mobile] .sff-back-to-top {
+                position: fixed;
+                right: 14px;
+                bottom: 20px;
+                width: 44px;
+                height: 44px;
+                box-sizing: border-box;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                background: #fc6d26;
+                color: #ffffff;
+                border: none;
+                border-radius: 8px;
+                font-size: 22px;
+                line-height: 1;
+                cursor: pointer;
+                z-index: 2147483647;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+            }
+            body[data-sff-mobile] .sff-back-to-top.sff-show {
+                display: flex;
+            }
+
+            /* Photo lightbox (react-image-lightbox) sizes images with a CSS
+               transform and expects them at their natural size. Strava's mobile
+               "img { max-width: 100% }" — pulled in by the .mobile class we add —
+               clamps the layout box to the viewport, so the library's fit-scale
+               double-shrinks a large photo into a tiny thumb. Restore natural
+               sizing for lightbox images only (a no-op when already smaller). */
+            body[data-sff-mobile] .StravaMediaLightbox img,
+            body[data-sff-mobile] .ril-outer img,
+            body[data-sff-mobile] .ril__image {
+                max-width: none !important;
+            }
+
+            /* The activity-detail lightbox is react-image-lightbox, which fits the
+               photo to a width it reserves for its side-arrow controls (~340px in a
+               narrow window) and only re-fits on a REAL window resize, so the photo
+               sits small. The feed uses a different viewer and is unaffected. Force
+               the current photo to fill the lightbox area itself (contain = whole
+               image, no crop), independent of the library's stale transform.
+               Trade-off: this overrides the library's own zoom transform. */
+            body[data-sff-mobile] .ril-inner .ril-image-current,
+            body[data-sff-mobile] .ril-inner .ril__imageCurrent {
+                transform: none !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                max-width: 100% !important;
+                max-height: 100% !important;
+                object-fit: contain !important;
+            }
+
+            /* Chart selector table (Pace/GAP/Cadence/Temperature): give it its
+               natural width and stop values like "5:46 /km" wrapping in two */
+            body[data-sff-mobile] #chart-controls {
+                width: 100% !important;
+                justify-content: center !important;
+            }
+            body[data-sff-mobile] #chart-controls table {
+                width: auto !important;
+                max-width: 100% !important;
+            }
+            body[data-sff-mobile] #chart-controls td,
+            body[data-sff-mobile] #chart-controls th {
+                white-space: nowrap !important;
+            }
+
             /* ---- Segment efforts table ---- */
             body[data-sff-mobile] .segments-list,
-            body[data-sff-mobile] table.segments,
-            body[data-sff-mobile] table.unstyled {
+            body[data-sff-mobile] table.segments {
                 width: 100% !important;
                 overflow-x: auto !important;
                 display: block !important;
+            }
+
+            /* Avg/Max details table is also table.unstyled; it must stay a real
+               table. Forcing display:block collapsed its columns so Avg and Max
+               values ran together (e.g. "26.7 km/h54.4 km/h"). */
+            body[data-sff-mobile] table.unstyled {
+                width: 100% !important;
+                table-layout: auto !important;
+            }
+
+            body[data-sff-mobile] table.unstyled th,
+            body[data-sff-mobile] table.unstyled td {
+                padding: 4px 12px 4px 0 !important;
+                white-space: nowrap !important;
+                text-align: left !important;
             }
 
             body[data-sff-mobile] table {
@@ -8191,7 +8938,11 @@ function getSettingsIconUrl(theme) {
             }
 
             body[data-sff-mobile] .page.container {
-                margin: 0 auto !important;
+                /* Keep horizontal centering but do NOT clobber the margin-top
+                   push (49px) that clears the fixed secondary-nav bar. */
+                margin-left: auto !important;
+                margin-right: auto !important;
+                margin-bottom: 0 !important;
                 padding: 0 8px !important;
                 max-width: 100% !important;
                 width: 100% !important;
@@ -8211,6 +8962,18 @@ function getSettingsIconUrl(theme) {
                 border: none !important;
                 outline: none !important;
                 box-shadow: none !important;
+            }
+
+            /* Section divider that cuts across under the activity description */
+            body[data-sff-mobile] .others-section-v2 {
+                border-top: none !important;
+            }
+
+            /* Vertical divider pseudo-element in the summary row (1px x 206px) */
+            body[data-sff-mobile] .row.no-margins::before {
+                content: none !important;
+                display: none !important;
+                border: none !important;
             }
 
             body[data-sff-mobile] [class*="spans"] {
@@ -8233,7 +8996,6 @@ function getSettingsIconUrl(theme) {
             }
 
                     `);
-        console.log('[SFF-DEBUG] Mobile CSS injected via GM_addStyle, element exists:', !!mobileStyleEl, 'in DOM:', document.contains(mobileStyleEl));
     }
 
     // Store original viewport content so we can restore it
@@ -8270,64 +9032,35 @@ function getSettingsIconUrl(theme) {
     }
 
     function applyTinyVerticalScrollFix() {
+        // The old "tiny 1-3px overflow" clamp (overflow-y:hidden on html/body
+        // and inner containers) is removed: when the mobile URL bar resized
+        // the viewport at the page bottom, the overflow briefly landed in the
+        // 1-3px window and the clamp froze scrolling in BOTH directions.
+        // Edge overscroll is handled by the ancestor-chain touch guard.
+        const docEl = document.documentElement;
+        const body = document.body;
         const clearClamp = (el) => {
             if (!el) return;
             el.style.removeProperty('overflow-y');
             el.style.removeProperty('overscroll-behavior-y');
         };
 
-        const docEl = document.documentElement;
-        const body = document.body;
+        window.__sffTinyClampActive = false;
+        clearClamp(docEl);
+        clearClamp(body);
+        document.querySelectorAll('[data-sff-scroll-clamp="1"]').forEach(el => {
+            clearClamp(el);
+            el.removeAttribute('data-sff-scroll-clamp');
+        });
 
         if (!sffIsMobileWidth()) {
-            window.__sffTinyClampActive = false;
-            clearClamp(docEl);
-            clearClamp(body);
-            document.querySelectorAll('[data-sff-scroll-clamp="1"]').forEach(el => {
-                clearClamp(el);
-                el.removeAttribute('data-sff-scroll-clamp');
-            });
+            docEl.style.removeProperty('overscroll-behavior-y');
+            if (body) body.style.removeProperty('overscroll-behavior-y');
+            return;
         }
-        const viewportHeight = window.innerHeight || docEl.clientHeight;
-        const fullHeight = Math.max(
-            docEl.scrollHeight,
-            docEl.offsetHeight,
-            body ? body.scrollHeight : 0,
-            body ? body.offsetHeight : 0
-        );
-        const overflow = fullHeight - viewportHeight;
-        let clampActive = false;
-
         // Keep root overscroll contained on mobile to reduce rubber-band drag.
         docEl.style.setProperty('overscroll-behavior-y', 'none', 'important');
         if (body) body.style.setProperty('overscroll-behavior-y', 'none', 'important');
-
-        if (overflow > 0 && overflow <= SFF_TINY_VERTICAL_SCROLL_THRESHOLD) {
-            docEl.style.setProperty('overflow-y', 'hidden', 'important');
-            if (body) body.style.setProperty('overflow-y', 'hidden', 'important');
-            clampActive = true;
-        } else {
-            docEl.style.removeProperty('overflow-y');
-            if (body) body.style.removeProperty('overflow-y');
-        }
-
-        // Strava sometimes scrolls inside #view/.view instead of body.
-        // Clamp any tiny-overflow scrolling container the same way.
-        const candidates = document.querySelectorAll('#view, .view, main, [role="main"], .page.container');
-        candidates.forEach(el => {
-            const localOverflow = (el.scrollHeight || 0) - (el.clientHeight || 0);
-            if (localOverflow > 0 && localOverflow <= SFF_TINY_VERTICAL_SCROLL_THRESHOLD) {
-                el.style.setProperty('overflow-y', 'hidden', 'important');
-                el.style.setProperty('overscroll-behavior-y', 'none', 'important');
-                el.setAttribute('data-sff-scroll-clamp', '1');
-                clampActive = true;
-            } else if (el.hasAttribute('data-sff-scroll-clamp')) {
-                clearClamp(el);
-                el.removeAttribute('data-sff-scroll-clamp');
-            }
-        });
-
-        window.__sffTinyClampActive = clampActive;
     }
 
     function setupTinyScrollTouchGuard() {
@@ -8335,10 +9068,19 @@ function getSettingsIconUrl(theme) {
         window.__sffTinyScrollTouchGuardSetup = true;
 
         const onTouchStart = (e) => {
-            sffLastTouchY = e.touches && e.touches[0] ? e.touches[0].clientY : null;
+            const t = e.touches && e.touches[0];
+            sffLastTouchY = t ? t.clientY : null;
+            sffTouchStartX = t ? t.clientX : 0;
+            sffTouchStartY = t ? t.clientY : 0;
         };
 
         const onTouchMove = (e) => {
+            // This handler is registered on both window and document (capture),
+            // so each event arrives twice. The second pass would recompute
+            // dy = 0 (sffLastTouchY already updated) and misread the drag
+            // direction, freezing the page at the bottom. Handle once.
+            if (e.__sffTouchGuardSeen) return;
+            e.__sffTouchGuardSeen = true;
             if (!sffIsMobileWidth()) return;
             if (!e.touches || !e.touches[0]) return;
 
@@ -8346,15 +9088,45 @@ function getSettingsIconUrl(theme) {
             if (target && (target.closest('input, textarea, select, [contenteditable="true"]'))) return;
 
             const y = e.touches[0].clientY;
+            const x = e.touches[0].clientX;
             const dy = sffLastTouchY === null ? 0 : y - sffLastTouchY;
             sffLastTouchY = y;
+            // A predominantly-horizontal gesture (photo-carousel swipe, horizontal
+            // pan) is NOT this guard's concern — it only exists for vertical
+            // overscroll. Canceling it here broke swiping between lightbox images.
+            // Decided from cumulative displacement since touchstart so per-tick
+            // jitter can't misclassify the axis.
+            if (Math.abs(x - sffTouchStartX) > Math.abs(y - sffTouchStartY)) return;
+            if (dy === 0) return; // no movement this tick; no direction to judge
 
-            const scroller = document.scrollingElement || document.documentElement;
-            const atTop = (scroller.scrollTop || window.scrollY || 0) <= 0;
-            const maxScroll = Math.max(0, (scroller.scrollHeight || 0) - (window.innerHeight || scroller.clientHeight || 0));
-            const atBottom = (scroller.scrollTop || window.scrollY || 0) >= maxScroll;
-
-            if (((atTop && dy > 0) || (atBottom && dy < 0) || window.__sffTinyClampActive) && e.cancelable) {
+            // The document may not be the actual scroller — Strava sometimes
+            // scrolls inside #view/.view. Walk up from the touched element and
+            // only cancel the drag when NO scroller in the chain can consume
+            // it in the drag direction (genuine edge overscroll).
+            const dragRevealAbove = dy > 0; // finger moves down -> content above
+            const canConsume = (node) => {
+                if (!node || node.nodeType !== 1) return false;
+                const isRoot = node === document.scrollingElement || node === document.documentElement || node === document.body;
+                if (!isRoot) {
+                    const ov = getComputedStyle(node).overflowY;
+                    if (ov !== 'auto' && ov !== 'scroll') return false;
+                }
+                const max = (node.scrollHeight || 0) - (node.clientHeight || 0);
+                if (max <= 1) return false;
+                return dragRevealAbove
+                    ? node.scrollTop > 0
+                    : node.scrollTop + node.clientHeight < node.scrollHeight - 1;
+            };
+            let chainNode = (target instanceof Element) ? target : null;
+            let consumed = false;
+            while (chainNode && !consumed) {
+                consumed = canConsume(chainNode);
+                chainNode = chainNode.parentElement;
+            }
+            if (!consumed) {
+                consumed = canConsume(document.scrollingElement || document.documentElement) || canConsume(document.body);
+            }
+            if (!consumed && e.cancelable) {
                 e.preventDefault();
             }
         };
@@ -8474,8 +9246,6 @@ function getSettingsIconUrl(theme) {
             });
         }
 
-        console.log('[SFF-DEBUG] Mobile overrides applied. outerWidth:', window.outerWidth, 'innerWidth:', window.innerWidth, 'mobileClass:', document.body.classList.contains('mobile'));
-
         // Strava can introduce a tiny 1-3px vertical overflow on mobile.
         // Clamp only that tiny overflow; keep normal page scrolling intact.
         applyTinyVerticalScrollFix();
@@ -8484,16 +9254,6 @@ function getSettingsIconUrl(theme) {
 
     function applyMobileResponsive() {
         setupTinyScrollTouchGuard();
-        console.log('[SFF-DEBUG] applyMobileResponsive called', {
-            hasSettings: !!settings,
-            enabled: settings?.enabled,
-            mobileResponsive: settings?.mobileResponsive,
-            pathname: window.location.pathname,
-            isActivity: UtilsModule.isOnActivityPage(),
-            outerWidth: window.outerWidth,
-            innerWidth: window.innerWidth,
-            isMobile: sffIsMobileWidth()
-        });
         if (!settings || !settings.enabled || !settings.mobileResponsive) {
             removeMobileResponsiveCSS();
             applyTinyVerticalScrollFix();
@@ -8502,7 +9262,6 @@ function getSettingsIconUrl(theme) {
         if (UtilsModule.isOnActivityPage()) {
             injectMobileResponsiveCSS();
             const isMobile = sffIsMobileWidth();
-            console.log('[SFF-DEBUG] CSS injected, isMobile:', isMobile, 'outerWidth:', window.outerWidth, 'innerWidth:', window.innerWidth, 'breakpoint:', SFF_MOBILE_BREAKPOINT);
             if (isMobile) {
                 applyMobileInlineOverrides(true);
             }
@@ -8577,6 +9336,101 @@ function getSettingsIconUrl(theme) {
         }
     }
 
+    // Thin top loading bar shown while an in-app link loads a new view, so the
+    // user gets feedback during the (sometimes slow) filtering pass instead of
+    // thinking the page hung. Auto-hides once the new view settles.
+    function setupNavLoadingBar() {
+        if (window.__sffNavLoadingSetup) return;
+        window.__sffNavLoadingSetup = true;
+
+        let bar = null;
+        let shown = false;
+        let startedAt = 0;
+        let settleTimer = null;
+        let safetyTimer = null;
+        let urlTimer = null;
+        let navObserver = null;
+
+        const MIN_VISIBLE = 650;   // keep it up long enough to actually be seen
+        const MAX_VISIBLE = 8000;  // hard safety so it can never get stuck
+
+        const ensureBar = () => {
+            if (bar && bar.isConnected) return bar;
+            bar = document.createElement('div');
+            bar.className = 'sff-nav-loading';
+            bar.setAttribute('aria-hidden', 'true');
+            const inner = document.createElement('div');
+            inner.className = 'sff-nav-loading-bar';
+            bar.appendChild(inner);
+            (document.body || document.documentElement).appendChild(bar);
+            return bar;
+        };
+
+        const hide = () => {
+            if (!shown) return;
+            shown = false;
+            if (bar) bar.classList.remove('sff-nav-show');
+            clearTimeout(settleTimer);
+            clearTimeout(safetyTimer);
+            if (urlTimer) { clearInterval(urlTimer); urlTimer = null; }
+            if (navObserver) { navObserver.disconnect(); navObserver = null; }
+        };
+
+        const hideAfterMin = () => {
+            const wait = Math.max(0, MIN_VISIBLE - (Date.now() - startedAt));
+            clearTimeout(settleTimer);
+            settleTimer = setTimeout(hide, wait);
+        };
+
+        const armNavObserver = () => {
+            if (navObserver) navObserver.disconnect();
+            navObserver = new MutationObserver(() => {
+                // Content is rendering — keep the bar up, re-check after a lull.
+                clearTimeout(settleTimer);
+                settleTimer = setTimeout(hideAfterMin, 350);
+            });
+            const root = document.getElementById('view') || document.querySelector('.view') || document.body;
+            if (root) navObserver.observe(root, { childList: true, subtree: true });
+        };
+
+        const show = () => {
+            ensureBar();
+            startedAt = Date.now();
+            bar.classList.add('sff-nav-show');
+            shown = true;
+            const startUrl = location.href;
+            armNavObserver();
+            urlTimer = setInterval(() => {
+                if (location.href !== startUrl) {
+                    clearInterval(urlTimer);
+                    urlTimer = null;
+                    hideAfterMin();
+                }
+            }, 60);
+            clearTimeout(safetyTimer);
+            safetyTimer = setTimeout(hide, MAX_VISIBLE);
+        };
+
+        document.addEventListener('click', (e) => {
+            if (e.defaultPrevented || (e.button !== undefined && e.button !== 0)
+                || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            const a = e.target && e.target.closest && e.target.closest('a[href]');
+            if (!a) return;
+            const tgt = a.getAttribute('target');
+            if (tgt && tgt !== '_self') return;
+            if (a.hasAttribute('download')) return;
+            const href = a.href;
+            if (!href) return;
+            try { if (new URL(href, location.href).origin !== location.origin) return; } catch (_) { return; }
+            // Ignore same-page anchors / modal triggers that don't change the path.
+            if (href === location.href) return;
+            if (href.split('#')[0] === location.href.split('#')[0]) return;
+            show();
+        }, true);
+
+        window.addEventListener('load', hide, { passive: true });
+    }
+
     // ==== SFF SECTION: INIT BOOTSTRAP ====
     // Setup global features that work on all pages
     let globalFeaturesInitialized = false;
@@ -8625,6 +9479,9 @@ function getSettingsIconUrl(theme) {
 
         // Setup scroll position persistence for dashboard feed
         setupScrollPersistence();
+
+        // Thin top loading bar for in-app link navigation
+        setupNavLoadingBar();
 
         // Setup observer for dynamically loaded content to hide gift buttons and challenges
         const observer = new MutationObserver(() => {
@@ -8736,17 +9593,8 @@ function getSettingsIconUrl(theme) {
         setupGlobalFeatures();
 
         // Always create UI elements (dashboard full panel or activity page minimal nav)
-        console.log('[SFF-DEBUG] Init check', {
-            pathname: window.location.pathname,
-            hasPanel: !!document.querySelector('.sff-clean-panel'),
-            hasNav: !!document.querySelector('.sff-secondary-nav'),
-            isDashboard: UtilsModule.isOnDashboard()
-        });
         if (!document.querySelector('.sff-clean-panel') && !document.querySelector('.sff-secondary-nav')) {
-            console.log('[SFF-DEBUG] Calling createElements from init');
             UIModule.createElements();
-        } else {
-            console.log('[SFF-DEBUG] Skipping createElements - elements already exist');
         }
 
         // Dashboard-specific initialization
@@ -8760,6 +9608,24 @@ function getSettingsIconUrl(theme) {
             LogicModule.manageHeaderKudosButton();
             LogicModule.filterActivities();
             LogicModule.setupAutoFilter();
+        }
+
+        // "?" icons (stats grid etc.) open their info on tap for touch devices
+        LogicModule.setupStatsInfoTap();
+
+        // Persistent pan indicator + mouse-drag panning for mobile scroll strips
+        LogicModule.setupMobilePanHelpers();
+
+        // Floating back-to-top button for long mobile pages
+        LogicModule.setupBackToTopButton();
+
+        // Hide Strava app promo banners (not the OS "Open in app?" dialog)
+        LogicModule.setupAppOpenGuard();
+
+        // Activity-page initialization: show the organized extra-stats grid
+        if (UtilsModule.isOnActivityPage()) {
+            LogicModule.renderDetailPageStats();
+            LogicModule.ensureDetailPageTitle();
         }
     })();
 

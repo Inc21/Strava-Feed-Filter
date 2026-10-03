@@ -1,5 +1,40 @@
 # Changelog
 
+## [v2.8.0] - 03.10.2026 (Firefox & Chrome Extensions)
+
+### v2.8.0 New Features
+
+- **Physical Therapy Activity Type**
+  - Added "Physical Therapy" to the Activity Types filter (56 types total).
+  - Strava introduced Physical Therapy as a dedicated sport type for recording recovery & rehabilitation sessions; entries are matched via the activity icon label in the feed.
+- **4 New Activity Tags**
+  - Added "Indoor Cycling", "Long Run", "Treadmill" and "Competition" to the Activity Tags filter (11 tags total).
+  - Strava's tag picker shows different tags per sport; all are matched by the tag text rendered on the feed entry.
+  - "Hide All Tags" now includes the new tags as well.
+- **Hide Untagged Option**
+  - New "Hide Untagged" checkbox next to "Hide All Tags" in the Activity Tags section.
+  - Hides all activities that have no tags at all; independent of the individual tag chips.
+- **Mobile Responsive Layout — Activity Details (Beta)**
+  - New opt-in "Mobile Responsive" mode that reflows Strava **activity detail pages** for phones and narrow browser windows; the desktop layout is unchanged.
+  - Restores Strava's native one-line Name–Type header and reorganises the extra stats into a clean, responsive grid.
+  - Adds swipe / mouse-drag panning with a floating indicator (and edge fade) for the fixed-width **elevation chart** and wide **segment tables**, so off-screen content is easy to reach.
+  - Adds a floating **Back to Top** button on long detail pages (appears after scrolling about half a screen; intentionally not shown on the feed).
+  - Activity **photo lightboxes** now open full-size and can be swiped between on mobile.
+  - 🚧 **Work in progress:** only activity detail pages are responsive so far — the dashboard and other pages will follow in future updates.
+
+### v2.8.0 Bug Fixes
+
+- **Notification Badge Requiring Two Opens to Clear (Mobile)**
+  - Fixed the red notification count on our notification bell surviving the first open on mobile/slow connections.
+  - Opening the bell fires the notification list fetch and the mark-all-read request concurrently; the list fetch often returned stale unread data and re-showed the badge after it had been cleared.
+  - The list fetch now only updates a positive badge count; the mark-all-read response is the single authority for clearing it, making the result independent of response order.
+- **Feed Jumping Back to Top on Load-More**
+  - Fixed the feed sometimes scrolling you back up (losing your place) when Strava finished loading more activities. A scroll anchor now keeps the top-most visible entry in position across load-more updates.
+- **No Feedback When Opening In-App Links**
+  - Added a thin orange loading bar along the top of the page that appears while a link's view is loading, so a slow (filter-heavy) navigation no longer feels like the page has frozen.
+- **Detail-Page Lightbox Photos Rendered Too Small**
+  - Activity-detail photos (react-image-lightbox) now fill the lightbox area like the feed viewer, instead of being shrunk to a narrow cached width.
+
 ## [v2.7.0] - 16.04.2026 (Firefox & Chrome Extensions)
 
 ### v2.7.0 New Features

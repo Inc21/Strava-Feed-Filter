@@ -21,7 +21,8 @@ with Strava's design.
 
 ## 🆕 What's New
 
-- **Latest: v2.7.0** — ✨ **Custom embed & device filtering improvements!** New custom embed filters field in 3rd Party Embeds section with real-time matching. Custom recording device field now also applies in real-time. Fixed partial device name matching (e.g. "ELEMNT" now matches "Wahoo ELEMNT ROAM").
+- **v2.8.0** — ➕ Added **Physical Therapy** to the Activity Types filter (56 types) to match Strava's new dedicated sport type for recovery & rehabilitation sessions. Also added **Indoor Cycling**, **Long Run**, **Treadmill** and **Competition** to the Activity Tags filter (11 tags). New **Hide Untagged** option in the Activity Tags section hides all activities that have no tags. 📱 New opt-in **Mobile Responsive** layout adapts **activity detail pages** to phones and narrow windows (beta — more pages coming). 🐛 Fixed the notification bell's red count requiring two opens to clear on mobile.
+- **v2.7.0** — ✨ **Custom embed & device filtering improvements!** New custom embed filters field in 3rd Party Embeds section with real-time matching. Custom recording device field now also applies in real-time. Fixed partial device name matching (e.g. "ELEMNT" now matches "Wahoo ELEMNT ROAM").
 - **v2.6.2** — ✨ **Update notifications & UI improvements!** In-panel update notification banner with version checking. Keyword preset buttons for Warm Up and Cool Down. Compact header buttons option for a cleaner interface. Improved dark mode support and panel usability.
 - **v2.5.0** — ✨ **Major UI & filtering improvements!** Compact settings panel with clickable info icons replacing verbose helper text. New device-based filtering with support for 21+ predefined devices (Zwift, Garmin, Wahoo, etc.) plus custom device field. Full support for group activities with improved device detection prioritizing metadata over user-editable names.
 - **v2.4.7** — 🐛 **Bug fixes & enhancements!** Fixed extension message listener for proper popup communication. Added "See what's new" link to extension popups linking to GitHub changelog.
@@ -113,6 +114,12 @@ The filter adapts seamlessly to different screen sizes with enhanced mobile supp
 
 ![Responsive design](./src/readme-images/responsive-layout.png)
 *Filter button adapts to different screen sizes*
+
+### 📱 Mobile Responsive Activity Details (Beta)
+
+> 🚧 **Work in progress.** Our opt-in **Mobile Responsive** mode currently reflows **activity detail pages** for phones and narrow browser windows — restoring Strava's native header, reorganising the stats, adding swipe/drag panning for the elevation chart and segment tables, a back-to-top button, and full-screen photo lightboxes. The dashboard and other pages will be made responsive in future updates.
+
+Want to follow development (and a few rides)? **[Follow me on Strava →](https://www.strava.com/athletes/2362084)**
 
 ## 🎛️ Settings Panel
 
@@ -297,7 +304,7 @@ See the difference filtering makes on your Strava feed:
 ## Changelog
 
 For the complete release notes, see [CHANGELOG.md](./CHANGELOG.md).
-Latest release: v2.6.0 (03.01.2026) - Added Rouvy filtering support and improved external service detection.
+Latest release: v2.8.0 (03.10.2026) - Mobile Responsive activity detail pages (beta), Physical Therapy activity type, new activity tags, Hide Untagged, and several mobile bug fixes.
 
 ## 📄 License
 
