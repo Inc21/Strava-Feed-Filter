@@ -1,5 +1,29 @@
 # Changelog
 
+## [v2.8.1] - 22.10.2026 (Firefox & Chrome Extensions)
+
+### v2.8.1 New Features
+
+- **Hide Athlete Posts**
+  - New "Hide athlete posts" checkbox in the Other section, below "Hide club posts".
+  - Hides athlete text/photo posts from the feed; they carry no activity type and previously passed through the activity filters untouched.
+  - Off by default; club posts keep their own separate filter.
+- **Hide Strava Promotional Posts**
+  - New "Hide Strava promotional posts" checkbox in the Other section, after "Hide athlete posts".
+  - Hides Strava's own promo cards in the feed, such as the free-trial offer ("You have a free trial"), detected by their promo image (``data-testid="promo-img"``, dorado/adzerk CDN) or a subscribe link on a card with no activity content.
+  - Off by default.
+- **Follow on Strava**
+  - Added a "Follow me on Strava" link in the settings panel footer next to the developer credit.
+
+### v2.8.1 Bug Fixes
+
+- **Group Activities Not Matched by Their Sport Filter**
+  - Group entries in the feed carry no sport label (only a generic icon), so the activity type came from free text and often resolved to a plain Ride; ticking "Virtual Ride" therefore only removed single rides.
+  - The sport is now read from the group header verb ("X rode / ran / walked / hiked / swam with Y"), which covers group activities of any sport.
+  - A member title can still supply a sub-type of that family (E-Bike, Gravel, Mountain Bike, Trail Run), so those group entries keep filtering like their single counterparts.
+  - Virtual platforms shown under the owner names (Zwift, MyWhoosh, Rouvy, TrainerRoad, FulGaz, Bkool, Kinomap, RGT) upgrade Ride/Run to Virtual Ride / Virtual Run, so group virtual rides and runs are filtered too.
+  - Dropped the kudos avatar strip as a "group ride" hint — it made unrelated activities with kudos look like Rides.
+
 ## [v2.8.0] - 03.10.2026 (Firefox & Chrome Extensions)
 
 ### v2.8.0 New Features

@@ -21,6 +21,7 @@ with Strava's design.
 
 ## 🆕 What's New
 
+- **v2.8.1** — 🐛 **Group filtering fix & new post controls!** Group activities now resolve their sport from the group header ("X rode / ran / walked / hiked / swam with Y") plus the recording platform, so **Virtual Ride / Virtual Run** and other sport filters now catch group entries too. New **Hide athlete posts** and **Hide Strava promotional posts** options in the Other section keep non-activity cards out of the feed.
 - **v2.8.0** — ➕ Added **Physical Therapy** to the Activity Types filter (56 types) to match Strava's new dedicated sport type for recovery & rehabilitation sessions. Also added **Indoor Cycling**, **Long Run**, **Treadmill** and **Competition** to the Activity Tags filter (11 tags). New **Hide Untagged** option in the Activity Tags section hides all activities that have no tags. 📱 New opt-in **Mobile Responsive** layout adapts **activity detail pages** to phones and narrow windows (beta — more pages coming). 🐛 Fixed the notification bell's red count requiring two opens to clear on mobile.
 - **v2.7.0** — ✨ **Custom embed & device filtering improvements!** New custom embed filters field in 3rd Party Embeds section with real-time matching. Custom recording device field now also applies in real-time. Fixed partial device name matching (e.g. "ELEMNT" now matches "Wahoo ELEMNT ROAM").
 - **v2.6.2** — ✨ **Update notifications & UI improvements!** In-panel update notification banner with version checking. Keyword preset buttons for Warm Up and Cool Down. Compact header buttons option for a cleaner interface. Improved dark mode support and panel usability.
@@ -53,6 +54,8 @@ with Strava's design.
 - **Map Filtering**: Hide activities without GPS maps
 - **Commute Tag Filtering**: Hide activities marked with the Commute tag
 - **Club Posts**: Option to hide club-related posts
+- **Athlete Posts**: Option to hide athlete text/photo posts
+- **Strava Promotional Posts**: Option to hide trial offers and Strava promo cards in the feed
 - **Challenge Filtering**: Hide your challenges section
 - **Hide Joined Challenges**: Hide athletes' joined challenge cards from the feed
 - **External Service Embeds Filtering**: Option to hide text embeds from third-party services in activity descriptions (e.g., myWindsock report, summitbag.com, Run Health, Wandrer, Bandok.com, COROS)
@@ -119,8 +122,6 @@ The filter adapts seamlessly to different screen sizes with enhanced mobile supp
 
 > 🚧 **Work in progress.** Our opt-in **Mobile Responsive** mode currently reflows **activity detail pages** for phones and narrow browser windows — restoring Strava's native header, reorganising the stats, adding swipe/drag panning for the elevation chart and segment tables, a back-to-top button, and full-screen photo lightboxes. The dashboard and other pages will be made responsive in future updates.
 
-Want to follow development (and a few rides)? **[Follow me on Strava →](https://www.strava.com/athletes/2362084)**
-
 ## 🎛️ Settings Panel
 
 The main settings panel features organized sections:
@@ -131,7 +132,7 @@ The main settings panel features organized sections:
 4. **Ignored Athletes**: Hide activities from specific users
 5. **Activity Types**: Checkboxes for each activity type with live count
 6. **Min/Max Filters**: Distance, duration, elevation, pace controls
-7. **Other Options**: Map filtering, club posts, challenges, global settings
+7. **Other Options**: Map filtering, club posts, athlete posts, Strava promos, challenges, global settings
 8. **Settings Management**: Import/export settings, reset to defaults
 
 ![Settings panel sections](./src/readme-images/filter-sections.png)
@@ -304,7 +305,7 @@ See the difference filtering makes on your Strava feed:
 ## Changelog
 
 For the complete release notes, see [CHANGELOG.md](./CHANGELOG.md).
-Latest release: v2.8.0 (03.10.2026) - Mobile Responsive activity detail pages (beta), Physical Therapy activity type, new activity tags, Hide Untagged, and several mobile bug fixes.
+Latest release: v2.8.1 (22.10.2026) - Group activity sport detection for virtual/sport filters, Hide athlete posts, and Hide Strava promotional posts.
 
 ## 📄 License
 

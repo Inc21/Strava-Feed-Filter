@@ -112,6 +112,8 @@ function getSettingsIconUrl(theme) {
         hideGiveGift: true,
         hideStartTrial: true,
         hideClubPosts: false,
+        hideAthletePosts: false,
+        hideStravaPromos: false,
         hideChallenges: false,
         hideJoinedChallenges: false,
         hideSuggestedFriends: false,
@@ -252,6 +254,32 @@ function getSettingsIconUrl(theme) {
         Yoga: /\b(yoga)\b/i
     };
 
+    // Platforms that only publish virtual activities. Strava prints the platform under the
+    // owner name; group entries carry no sport label of their own to detect virtual types by.
+    const VIRTUAL_PLATFORM_PATTERN = /\b(zwift|mywhoosh|rouvy|trainer\s*road|trainerroad|fulgaz|bkool|kinomap|rgt)\b/i;
+
+    // Group entries show the sport only as a verb in the header ("X rode with Y"), never as a
+    // type label; member titles are user-written and often resolve to the wrong sport.
+    const GROUP_HEADER_SPORTS = {
+        rode: 'Ride',
+        ran: 'Run',
+        walked: 'Walk',
+        hiked: 'Hike',
+        swam: 'Swim'
+    };
+
+    // Sub-types sharing a sport family; a group header verb only overrides the title-derived
+    // match when it belongs to a different family (keeps E-Bike, Gravel, Trail Run, ... intact).
+    const TYPE_FAMILIES = {
+        Ride: ['Ride', 'EBikeRide', 'EMountainBikeRide', 'GravelRide', 'MountainBikeRide', 'VirtualRide', 'Handcycle', 'Velomobile'],
+        Run: ['Run', 'TrailRun', 'VirtualRun'],
+        Walk: ['Walk'],
+        Hike: ['Hike'],
+        Swim: ['Swim']
+    };
+
+    const typeFamily = (key) => Object.keys(TYPE_FAMILIES).find(family => TYPE_FAMILIES[family].includes(key)) || key;
+
     function matchActivityType(rawType) {
         const normalized = normalizeTypeLabel(rawType);
         if (!normalized) return null;
@@ -308,13 +336,49 @@ function getSettingsIconUrl(theme) {
 
     function resolveActivityType(activity) {
         const candidates = collectActivityTypeCandidates(activity);
+        let match = null;
+        let raw = '';
         for (const candidate of candidates) {
-            const match = matchActivityType(candidate);
+            match = matchActivityType(candidate);
             if (match) {
-                return { match, raw: candidate };
+                raw = candidate;
+                break;
             }
         }
-        return { match: null, raw: candidates[0] || '' };
+
+        // The group header verb is the only sport label a group entry carries; a member title
+        // may still name a sub-type of that family (Trail Run, E-Bike Ride, Gravel Ride, ...).
+        const groupSport = resolveGroupSport(activity);
+        if (groupSport) {
+            const family = typeFamily(groupSport.key);
+            const subtype = candidates
+                .map(candidate => matchActivityType(candidate))
+                .find(candidateMatch => candidateMatch && typeFamily(candidateMatch.key) === family && candidateMatch.key !== groupSport.key);
+            match = subtype || (match && typeFamily(match.key) === family ? match : groupSport);
+        }
+
+        // Ride/Run resolved from a member title ("... Group Ride ...") become their virtual
+        // counterparts when the entry itself shows a virtual platform or a Virtual tag.
+        if (match && (match.key === 'Ride' || match.key === 'Run') && isVirtualEntry(activity, raw)) {
+            match = TYPE_LABEL_METADATA.find(t => t.key === (match.key === 'Ride' ? 'VirtualRide' : 'VirtualRun')) || match;
+        }
+
+        return { match, raw: raw || candidates[0] || '' };
+    }
+
+    function resolveGroupSport(activity) {
+        const button = Array.from(activity.querySelectorAll('button'))
+            .find(btn => /\b(rode|ran|walked|hiked|swam)\s+with\b/i.test(btn.textContent || ''));
+        if (!button) return null;
+        const verb = (button.textContent.match(/\b(rode|ran|walked|hiked|swam)\s+with\b/i) || [])[1];
+        const key = GROUP_HEADER_SPORTS[(verb || '').toLowerCase()];
+        return key ? TYPE_LABEL_METADATA.find(t => t.key === key) || null : null;
+    }
+
+    function isVirtualEntry(activity, typeText = '') {
+        const tags = Array.from(activity.querySelectorAll('[data-testid="tag"]')).map(el => el.textContent.trim().toLowerCase());
+        const platformText = Array.from(activity.querySelectorAll('[data-testid="name-and-location"] p')).map(el => el.textContent || '').join(' ');
+        return normalizeTypeLabel(typeText).includes('virtual') || tags.includes('virtual') || VIRTUAL_PLATFORM_PATTERN.test(platformText);
     }
 
 
@@ -3980,6 +4044,14 @@ function getSettingsIconUrl(theme) {
                                 <input type="checkbox" class="sff-hideClubPosts" ${settings.hideClubPosts ? 'checked' : ''}>
                                 Hide club posts
                             </label>
+                            <label class="sff-chip ${settings.hideAthletePosts ? 'checked' : ''}">
+                                <input type="checkbox" class="sff-hideAthletePosts" ${settings.hideAthletePosts ? 'checked' : ''}>
+                                Hide athlete posts
+                            </label>
+                            <label class="sff-chip ${settings.hideStravaPromos ? 'checked' : ''}">
+                                <input type="checkbox" class="sff-hideStravaPromos" ${settings.hideStravaPromos ? 'checked' : ''}>
+                                Hide Strava promotional posts
+                            </label>
                         </div>
                     </div>
                     <div class="sff-buttons">
@@ -3994,7 +4066,7 @@ function getSettingsIconUrl(theme) {
                             <button class="sff-share-btn" title="Share this extension">📤 Share</button>
                         </div>
                         <div class="sff-credits">
-                            <p>Developed By: <a href="https://github.com/Inc21" target="_blank">Inc21</a></p>
+                            <p>Developed By: <a href="https://github.com/Inc21" target="_blank">Inc21</a> · <a href="https://www.strava.com/athletes/2362084" target="_blank">Follow me on Strava</a></p>
                         </div>
                     </div>
                     <div class="sff-copyright">
@@ -4984,6 +5056,16 @@ function getSettingsIconUrl(theme) {
                         UtilsModule.saveSettings(settings);
                         LogicModule.filterActivities();
                     }
+                    if (e.target.classList.contains('sff-hideAthletePosts')) {
+                        settings.hideAthletePosts = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.filterActivities();
+                    }
+                    if (e.target.classList.contains('sff-hideStravaPromos')) {
+                        settings.hideStravaPromos = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.filterActivities();
+                    }
 
                     // Activity type chips
                     if (e.target.hasAttribute('data-typ')) {
@@ -5528,6 +5610,30 @@ function getSettingsIconUrl(theme) {
                 const postLink = el.querySelector?.('a[data-testid="post-details-url"]');
                 if (postLink && /^\/clubs\//.test(postLink.getAttribute('href') || '')) return true;
                 if (el.querySelector?.('a[href^="/clubs/"]')) return true;
+                return false;
+            } catch (_) {
+                return false;
+            }
+        },
+        // Determine if a feed node is an athlete post (club posts have their own filter)
+        isAthletePost(node) {
+            if (!node) return false;
+            const el = (node.matches?.('[data-testid="web-feed-entry"]') ? node : node.closest?.('[data-testid="web-feed-entry"]')) || node;
+            try {
+                if (el.querySelector?.('a[data-testid="post-details-url"], a[data-testid="post-details-image-url"]')) return true;
+                return !!el.querySelector?.('a[href*="/posts/"]');
+            } catch (_) {
+                return false;
+            }
+        },
+        // Determine if a feed node is a Strava promo card (trial offer, marketing post)
+        isPromoEntry(node) {
+            if (!node) return false;
+            const el = (node.matches?.('[data-testid="web-feed-entry"]') ? node : node.closest?.('[data-testid="web-feed-entry"]')) || node;
+            try {
+                if (el.querySelector?.('[data-testid="promo-img"], img[src*="dorado.strava.com"], img[src*="engine.adzerk.net"]')) return true;
+                // Subscribe CTA on a card without activity content
+                if (el.querySelector?.('a[href*="/subscribe"]') && !el.querySelector?.('svg[data-testid="activity-icon"], [data-testid="activity-name"], [data-testid="activity_name"]')) return true;
                 return false;
             } catch (_) {
                 return false;
@@ -6428,6 +6534,28 @@ function getSettingsIconUrl(theme) {
                     return; // Club posts are not subject to other filters
                 }
 
+                // Handle Strava promotional posts (trial offers, marketing cards)
+                if (this.isPromoEntry(activity)) {
+                    if (settings.hideStravaPromos) {
+                        activity.style.display = 'none';
+                        hiddenCount++;
+                    } else {
+                        activity.style.display = '';
+                    }
+                    return; // Promo cards are not subject to activity filters
+                }
+
+                // Handle athlete posts separately
+                if (this.isAthletePost(activity)) {
+                    if (settings.hideAthletePosts) {
+                        activity.style.display = 'none';
+                        hiddenCount++;
+                    } else {
+                        activity.style.display = '';
+                    }
+                    return; // Posts are not subject to activity filters
+                }
+
                 // Handle joined challenge cards separately
                 if (this.isChallengeEntry(activity)) {
                     if (settings.hideJoinedChallenges) {
@@ -6462,22 +6590,17 @@ function getSettingsIconUrl(theme) {
                         // If resolvedType exists and is NOT hidden, we do NOT fall through to generic checks.
                         // This protects "VirtualRide" from being hidden by the generic "Ride" logic below.
                     } else {
-                        // Fallback for group activities or unresolved types
-                        // Also check activity tags for "Virtual" (group virtual rides carry this tag)
-                        const activityTagTextsForType = Array.from(activity.querySelectorAll('[data-testid="tag"]')).map(el => el.textContent.trim().toLowerCase());
-                        const isVirtual = normalizedTypeText.includes('virtual') || activityTagTextsForType.includes('virtual');
+                        // Fallback for entries whose type could not be resolved
+                        const isVirtual = isVirtualEntry(activity, typeText);
                         
                         if (isVirtual) {
                             const hideAnyVirtual = TYPE_LABEL_METADATA.filter(t => t.normalized.includes('virtual')).some(t => settings.types[t.key]);
                             if (hideAnyVirtual) shouldHide = true;
                         } else {
                             // Only check for generic ride if it's NOT virtual
-                            // Check for group ride indicators:
-                            const hasGroupAvatars = !!activity.querySelector('[data-testid="avatar_group"]');
                             const isRide = normalizedTypeText.includes('ride') || 
-                                         /\b(rode|cycling|cycle)\b/i.test(title) || 
-                                         (activity.querySelector('[data-testid="group-header"]') && /rode/i.test(activity.textContent || '')) ||
-                                         (hasGroupAvatars && !normalizedTypeText.includes('run')); // Assume group activity is a ride if not explicitly a run
+                                         /\b(rode|cycling|cycle)\b/i.test(title) ||
+                                         (activity.querySelector('[data-testid="group-header"]') && /rode/i.test(activity.textContent || ''));
                             
                             if (isRide) {
                                  if (settings.types['Ride']) shouldHide = true;
