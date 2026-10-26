@@ -1,6 +1,5 @@
-function getSettingsIconUrl(theme) {
-    const iconName = theme === 'dark' ? 'gear_orange.svg' : 'gear_gray.svg';
-    const file = `icons/${iconName}`;
+function getSettingsIconUrl() {
+    const file = 'icons/gear_gray.svg';
     try {
         if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
             return chrome.runtime.getURL(file);
@@ -140,6 +139,7 @@ function getSettingsIconUrl(theme) {
         showSeeMoreButton: true,
         seeMoreButtonMode: 'always',
         showNotifications: true,
+        autoUpdateCheck: true, // Look for a newer release once every 24 hours
         minKm: "",
         maxKm: "",
         minMins: "",
@@ -150,6 +150,7 @@ function getSettingsIconUrl(theme) {
         maxPace: "",
         unitSystem: 'metric', // 'metric' or 'imperial'
         enabled: true,
+        filterMode: 'custom', // Preset level: off | light | standard | strict | custom
         theme: 'light',
         compactButtons: false,
         mobileResponsive: true, // Mobile-friendly activity pages by default
@@ -227,6 +228,108 @@ function getSettingsIconUrl(theme) {
             keywords: ['cool down', 'cool-down', 'cool_down', 'cooldown', 'cd']
         }
     ];
+
+    // Filter modes: quick presets that are overlaid on top of the saved settings for the duration
+    // of a filter run only. They never write into `settings`, so Custom keeps the user's own
+    // configuration (and that is the one that gets exported/imported).
+    const FILTER_MODE_ORDER = ['off', 'light', 'standard', 'strict', 'custom'];
+
+    // Neutral baseline shared by every preset: no personal lists, no type picks, no extra rules.
+    // Header-button preferences (Give a Gift, Start Trial) are settings, not feed filters, so they
+    // are deliberately left out: a mode never changes what the Settings view shows or does.
+    const MODE_NEUTRAL = {
+        keywords: [], allowedAthletes: [], ignoredAthletes: [],
+        recordingDevices: [], recordingDevicesCustom: '', activityTags: [], customEmbedFilters: '',
+        types: {},
+        minKm: '', maxKm: '', minMins: '', maxMins: '', minElevM: '', maxElevM: '', minPace: '', maxPace: '',
+        hideAllDevices: false, hideAllTags: false,
+        hideUntagged: false, hideNoMap: false,
+        hideAllEmbeds: false, hideClubPosts: false, hideAthletePosts: false, hideStravaPromos: false,
+        hideChallenges: false, hideJoinedChallenges: false, hideSuggestedFriends: false,
+        hideYourClubs: false, hideMyWindsock: false, hideSummitbag: false, hideRunHealth: false,
+        hideWandrer: false, hideBandok: false, hideCoros: false, hideRouvy: false,
+        hideZwiftRoute: false, hideJoinWorkout: false, hideCoachCat: false, hideXert: false,
+        hideCyql: false, hideEviso: false, hideRestortrain: false, hideAthleteJoinedClub: false,
+        hideCommuteTag: false, hideFooter: false
+    };
+
+    const VIRTUAL_TYPES = { VirtualRide: true, VirtualRun: true, VirtualRow: true };
+
+    // Indoor sports that LIGHT leaves alone but MEDIUM hides as well.
+    const EXTRA_INDOOR_TYPES = {
+        Yoga: true, WeightTraining: true, TableTennis: true, StairStepper: true,
+        Squash: true, Pilates: true, PhysicalTherapy: true, Dance: true, InlineSkate: true,
+        Crossfit: true, Elliptical: true
+    };
+
+    // LIGHT is the base of the ladder: MEDIUM starts from these rules and adds to them.
+    const MODE_LIGHT_RULES = {
+        ...MODE_NEUTRAL,
+        types: { ...VIRTUAL_TYPES },
+        activityTags: ['Indoor Cycling', 'Treadmill'],
+        minKm: 1, minMins: 2,
+        hideNoMap: true
+    };
+
+    // Every third-party embed STRICT hides.
+    const ALL_EMBEDS = {
+        hideMyWindsock: true, hideSummitbag: true, hideRunHealth: true, hideWandrer: true,
+        hideBandok: true, hideCoros: true, hideRouvy: true, hideZwiftRoute: true,
+        hideJoinWorkout: true, hideCoachCat: true, hideXert: true, hideCyql: true,
+        hideEviso: true, hideRestortrain: true
+    };
+
+    // STRICT works from an allow-list: every type that is not named here gets hidden.
+    const STRICT_ALLOWED_TYPES = [
+        'Ride', 'Run', 'Walk', 'Swim', 'Hike', 'TrailRun', 'MountainBikeRide',
+        'GravelRide', 'EBikeRide', 'EMountainBikeRide', 'NordicSki', 'AlpineSki', 'BackcountrySki'
+    ];
+    const STRICT_HIDDEN_TYPES = TYPES
+        .filter(t => !STRICT_ALLOWED_TYPES.includes(t.key))
+        .reduce((hidden, t) => ({ ...hidden, [t.key]: true }), {});
+
+    const FILTER_MODES = {
+        off: {
+            label: 'OFF',
+            description: 'Filtering is paused. Your feed is shown exactly as Strava delivers it.'
+        },
+        light: {
+            label: 'LIGHT',
+            description: 'This mode hides virtual rides, runs and rows, Indoor Cycling and Treadmill tags, anything without a map, and anything under 1 km or 2 minutes.',
+            rules: MODE_LIGHT_RULES
+        },
+        standard: {
+            label: 'MEDIUM',
+            description: 'This mode hides everything LIGHT mode does, plus the other indoor sport types, the Commute tag, Suggested Friends, Strava promo posts and joined club/challenge entries, and a 2 km / 10 minute minimum.',
+            rules: {
+                ...MODE_LIGHT_RULES,
+                types: { ...MODE_LIGHT_RULES.types, ...EXTRA_INDOOR_TYPES },
+                activityTags: ['Indoor Cycling', 'Treadmill', 'Commute'],
+                minKm: 2, minMins: 10,
+                hideSuggestedFriends: true, hideStravaPromos: true,
+                hideAthleteJoinedClub: true, hideJoinedChallenges: true
+            }
+        },
+        strict: {
+            label: 'STRICT',
+            description: 'This mode hides everything MEDIUM mode does, plus warm-up and cool-down keywords, only the main outdoor sport types, every third-party embed, the footer, all Other filters, and a 5 km / 20 minute minimum.',
+            rules: {
+                ...MODE_NEUTRAL,
+                keywords: ['warm up', 'warm-up', 'warm_up', 'warmup', 'wu', 'cool down', 'cool-down', 'cool_down', 'cooldown', 'cd'],
+                types: { ...STRICT_HIDDEN_TYPES },
+                activityTags: ['Indoor Cycling', 'Treadmill', 'Commute'],
+                minKm: 5, minMins: 20,
+                hideAllEmbeds: true, ...ALL_EMBEDS,
+                hideSuggestedFriends: true, hideFooter: true,
+                hideNoMap: true, hideJoinedChallenges: true, hideAthleteJoinedClub: true,
+                hideClubPosts: true, hideAthletePosts: true, hideStravaPromos: true
+            }
+        },
+        custom: {
+            label: 'CUSTOM',
+            description: 'Your own mix from the filter list below. This is the setup that is saved, exported and imported.'
+        }
+    };
 
     const normalizeTypeLabel = (str = '') => str.toLowerCase().replace(/\s+/g, ' ').trim();
     const condenseTypeLabel = (str = '') => normalizeTypeLabel(str).replace(/[^a-z0-9]/g, '');
@@ -631,6 +734,23 @@ function getSettingsIconUrl(theme) {
         font-weight: 600 !important;
       }
 
+      .sff-update-check-now {
+        background: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font: inherit !important;
+        color: inherit !important;
+        text-decoration: underline !important;
+        cursor: pointer !important;
+      }
+
+      .sff-update-check-now:disabled {
+        opacity: 0.5 !important;
+        text-decoration: none !important;
+        cursor: default !important;
+      }
+
       .sff-update-actions {
         display: flex !important;
         gap: 6px !important;
@@ -766,62 +886,79 @@ function getSettingsIconUrl(theme) {
         display: flex !important;
         justify-content: space-between !important;
         align-items: center !important;
-        width: 100%;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
         margin-right: 16px !important;
       }
 
-      .sff-toggle-section {
+      .sff-header-main h3 {
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+      }
+
+      .sff-mode-section {
+        margin-bottom: 16px !important;
+      }
+
+      .sff-mode-title {
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+        opacity: 0.6 !important;
+        margin-bottom: 6px !important;
+      }
+
+      .sff-mode-bar {
         display: flex !important;
-        align-items: center !important;
-        padding: 12px 16px !important;
-        border-bottom: 1px solid #eee !important;
-        background: #f8f9fa !important;
+        border: 1px solid #d9d9d9 !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
       }
 
-      .sff-switch {
-        position: relative !important;
-        display: inline-block !important;
-        width: 34px !important;
-        height: 20px !important;
-        margin-right: 10px !important;
-      }
-
-      .sff-switch input {
-        opacity: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-      }
-
-      .sff-slider {
-        position: absolute !important;
+      .sff-mode-btn {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        padding: 9px 0 !important;
+        border: none !important;
+        border-right: 1px solid #d9d9d9 !important;
+        background: #ffffff !important;
+        color: #555 !important;
+        font-family: inherit !important;
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        letter-spacing: normal !important;
+        text-transform: uppercase !important;
         cursor: pointer !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        background-color: #ccc !important;
-        transition: .4s !important;
-        border-radius: 20px !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        transition: background 0.15s, color 0.15s !important;
       }
 
-      .sff-slider:before {
-        position: absolute !important;
-        content: "" !important;
-        height: 14px !important;
-        width: 14px !important;
-        left: 3px !important;
-        bottom: 3px !important;
-        background-color: white !important;
-        transition: .4s !important;
-        border-radius: 50% !important;
+      .sff-mode-btn:last-child {
+        border-right: none !important;
       }
 
-      input:checked + .sff-slider {
-        background-color: #4CAF50 !important;
+      .sff-mode-btn:hover {
+        background: #fff1e8 !important;
+        color: #fc5200 !important;
       }
 
-      input:checked + .sff-slider:before {
-        transform: translateX(14px) !important;
+      .sff-mode-btn.active {
+        background: #fc5200 !important;
+        color: #ffffff !important;
+      }
+
+      .sff-mode-desc {
+        margin: 8px 0 0 0 !important;
+        padding: 8px 10px !important;
+        font-size: 11px !important;
+        line-height: 1.45 !important;
+        color: #555 !important;
+        background: #f8f9fa !important;
+        border-left: 3px solid #fc5200 !important;
+        border-radius: 0 4px 4px 0 !important;
       }
 
       .sff-clean-panel .sff-section h4 {
@@ -1199,58 +1336,6 @@ function getSettingsIconUrl(theme) {
         display: none !important;
       }
 
-      .sff-switch {
-        position: relative !important;
-        display: inline-block !important;
-        width: 40px !important;
-        height: 22px !important;
-      }
-
-      .sff-switch input {
-        opacity: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-      }
-
-      .sff-slider {
-        position: absolute !important;
-        cursor: pointer !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        background-color: #ccc !important;
-        transition: .4s !important;
-        border-radius: 22px !important;
-      }
-
-      .sff-slider:before {
-        position: absolute !important;
-        content: "" !important;
-        height: 16px !important;
-        width: 16px !important;
-        left: 3px !important;
-        bottom: 3px !important;
-        background-color: white !important;
-        transition: .4s !important;
-        border-radius: 50% !important;
-      }
-
-      input:checked + .sff-slider {
-        background-color: #fc5200 !important;
-      }
-
-      input:checked + .sff-slider:before {
-        transform: translateX(18px) !important;
-      }
-
-      .sff-toggle-section {
-        display: flex !important;
-        align-items: center !important;
-        gap: 10px !important;
-        margin-bottom: 16px !important;
-      }
-
       .sff-clean-panel .sff-section {
         margin-bottom: 16px !important;
       }
@@ -1346,7 +1431,7 @@ function getSettingsIconUrl(theme) {
         font-weight: 600 !important;
         font-size: 14px !important;
         padding: 8px 12px !important;
-        margin-bottom: 16px !important;
+        margin: 16px 0 0 0 !important;
         display: flex !important;
         align-items: center !important;
         gap: 6px !important;
@@ -1362,12 +1447,14 @@ function getSettingsIconUrl(theme) {
 
 
       .sff-clean-panel .sff-buttons button {
-        padding: 6px 12px !important;
-        border: 1px solid #ddd !important;
-        border-radius: 4px !important;
+        padding: 8px 16px !important;
+        border: 1px solid #fc5200 !important;
+        border-radius: 6px !important;
         cursor: pointer !important;
+        font-family: inherit !important;
         font-size: 12px !important;
         font-weight: 500 !important;
+        white-space: nowrap !important;
       }
 
       .sff-clean-panel .sff-save {
@@ -1377,8 +1464,33 @@ function getSettingsIconUrl(theme) {
       }
 
       .sff-clean-panel .sff-save:hover {
-        background: #e04700 !important;
-        border-color: #e04700 !important;
+        background: #e04a00 !important;
+        border-color: #e04a00 !important;
+      }
+
+      .sff-clean-panel .sff-buttons .sff-settings-toggle {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        padding: 7px 16px !important;
+        background: transparent !important;
+        color: #fc5200 !important;
+        border: 1.5px solid #fc5200 !important;
+        border-radius: 6px !important;
+        transition: all 0.2s !important;
+      }
+
+      .sff-clean-panel .sff-buttons .sff-settings-toggle:hover {
+        background: #fc5200 !important;
+        color: #fff !important;
+        border-color: #fc5200 !important;
+      }
+
+      .sff-clean-panel .sff-buttons .sff-settings-toggle img {
+        display: block !important;
+        width: 16px !important;
+        height: 16px !important;
       }
 
       .sff-clean-panel .sff-reset {
@@ -1421,7 +1533,7 @@ function getSettingsIconUrl(theme) {
       }
 
       .sff-credits {
-        text-align: left !important;
+        text-align: center !important;
         margin: 0 !important;
         padding: 0 !important;
         background: none !important;
@@ -1433,6 +1545,11 @@ function getSettingsIconUrl(theme) {
       }
 
       .sff-credits p {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px 18px !important;
         margin: 0 !important;
         line-height: 1.3 !important;
       }
@@ -1485,6 +1602,7 @@ function getSettingsIconUrl(theme) {
         color: #fc5200 !important;
         text-decoration: none !important;
         border-radius: 6px !important;
+        font-family: inherit !important;
         font-size: 12px !important;
         font-weight: 500 !important;
         border: 1.5px solid #fc5200 !important;
@@ -1568,6 +1686,17 @@ function getSettingsIconUrl(theme) {
         justify-content: flex-start !important;
       }
 
+      /* Detail pages have no header button, so this row is the only way into the panel:
+         keep it visible at every width, not just the mobile layout. */
+      body:not([data-sff-dashboard="true"]) .sff-secondary-nav {
+        display: flex !important;
+      }
+
+      /* ...and keep the page clear of it, the same 49px the narrow layouts already use. */
+      body:not([data-sff-dashboard="true"]) .page.container {
+        margin-top: 49px !important;
+      }
+
       /* Mobile relies on Strava's native "Name - Type" header (no injected type). */
 
       /* Dark theme overrides scoped to the filter panel and secondary nav */
@@ -1629,8 +1758,7 @@ function getSettingsIconUrl(theme) {
       .sff-clean-panel.sff-theme-dark .sff-credits p:first-child,
       .sff-clean-panel.sff-theme-dark .sff-copyright,
       .sff-clean-panel.sff-theme-dark .sff-activity-count,
-      .sff-clean-panel.sff-theme-dark .sff-settings-desc,
-      .sff-clean-panel.sff-theme-dark .sff-toggle-text {
+      .sff-clean-panel.sff-theme-dark .sff-settings-desc {
         color: #e5e7eb !important;
       }
 
@@ -1731,29 +1859,39 @@ function getSettingsIconUrl(theme) {
         color: #111111 !important;
       }
 
-      .sff-clean-panel.sff-theme-dark .sff-toggle-section {
+      .sff-clean-panel.sff-theme-dark .sff-mode-bar {
+        border-color: #333333 !important;
+      }
+
+      .sff-clean-panel.sff-theme-dark .sff-mode-btn {
         background: #18181b !important;
-        border-bottom-color: #333333 !important;
+        color: #b3b3b3 !important;
+        border-right-color: #333333 !important;
       }
 
-      .sff-clean-panel.sff-theme-dark .sff-switch .sff-slider {
-        background-color: #333333 !important;
+      .sff-clean-panel.sff-theme-dark .sff-mode-btn:hover {
+        background: #242428 !important;
+        color: #fc5200 !important;
       }
 
-      .sff-clean-panel.sff-theme-dark .sff-switch input:checked + .sff-slider {
-        background-color: #fc5200 !important;
+      .sff-clean-panel.sff-theme-dark .sff-mode-btn.active {
+        background: #fc5200 !important;
+        color: #111111 !important;
       }
 
-      .sff-clean-panel.sff-theme-dark .sff-switch .sff-slider:before {
-        background-color: #f9fafb !important;
+      .sff-clean-panel.sff-theme-dark .sff-mode-desc {
+        background: #18181b !important;
+        color: #b3b3b3 !important;
       }
 
       .sff-clean-panel.sff-theme-dark .sff-settings-toggle {
-        color: #e5e7eb !important;
+        color: #fc5200 !important;
+        border-color: #fc5200 !important;
       }
 
       .sff-clean-panel.sff-theme-dark .sff-settings-toggle:hover {
-        color: #fc5200 !important;
+        background: #fc5200 !important;
+        color: #111111 !important;
       }
 
       .sff-clean-panel.sff-theme-dark .sff-seeMoreMode {
@@ -1911,10 +2049,8 @@ function getSettingsIconUrl(theme) {
           margin-top: 49px !important;
         }
 
-        /* Push content down on non-dashboard pages */
-        body:not([data-sff-dashboard="true"]) .page.container {
-          margin-top: 49px !important;
-        }
+        /* The non-dashboard content offset is not width-dependent, so it lives outside this
+           block: the nav row is shown at every width on those pages. */
       }
 
 
@@ -1988,22 +2124,6 @@ function getSettingsIconUrl(theme) {
       }
 
       /* Settings View Styles */
-      .sff-settings-toggle {
-        background: none !important;
-        border: none !important;
-        cursor: pointer !important;
-        font-size: 18px !important;
-        padding: 4px !important;
-        margin-left: auto !important; /* Pushes it to the right of flex container */
-        opacity: 0.8 !important;
-        transition: opacity 0.2s !important;
-        color: #666 !important; /* Updated to match gray theme of toggle section */
-        line-height: 1 !important;
-      }
-      .sff-settings-toggle:hover {
-        opacity: 1 !important;
-      }
-      
       .sff-view-settings {
         display: none;
         padding: 16px;
@@ -2533,6 +2653,12 @@ function getSettingsIconUrl(theme) {
                 merged.seeMoreButtonMode = 'always';
                 merged.showSeeMoreButton = true;
             }
+            // Filter mode: OFF means filtering is disabled, any other mode means it is enabled.
+            if (!merged.enabled) {
+                merged.filterMode = 'off';
+            } else if (!FILTER_MODES[merged.filterMode] || merged.filterMode === 'off') {
+                merged.filterMode = 'custom';
+            }
             return merged;
         },
 
@@ -2558,8 +2684,28 @@ function getSettingsIconUrl(theme) {
             return window.location.pathname === '/dashboard' || window.location.pathname === '/';
         },
 
+        // Name shown in the header user menu (desktop sidebar and mobile hamburger menu).
+        // Returns an empty string when the menu is not rendered yet.
+        getLoggedInAthleteName() {
+            const el = document.querySelector('.user-menu .athlete-name');
+            return el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+        },
+
         isOnActivityPage() {
             return /^\/activities\/\d+/.test(window.location.pathname);
+        },
+
+        // "Show more stats" is one setting with three widths of meaning, used by both the feed
+        // buttons and the extra-stats grid on the activity detail page.
+        shouldShowExtraStats() {
+            let mode = settings.seeMoreButtonMode;
+            if (!mode) mode = settings.showSeeMoreButton === false ? 'never' : 'always';
+            if (mode === 'never') return false;
+            if (mode === 'smallOnly') {
+                const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth || 0;
+                return width <= 990;
+            }
+            return true;
         },
 
         // Convert pace from min:sec format to decimal minutes
@@ -2692,13 +2838,29 @@ function getSettingsIconUrl(theme) {
     };
 
     const UpdateModule = {
-        async init(panel) {
+        async init(panel, options = {}) {
             if (!panel) return;
+            const manual = options.force === true;
 
             const currentVersion = this.getCurrentVersion();
             if (!currentVersion) return;
 
-            const remoteData = await this.getRemoteInfo(FORCE_UPDATE_BANNER);
+            this.refreshStatus(panel);
+
+            if (!manual && !FORCE_UPDATE_BANNER && settings.autoUpdateCheck === false) {
+                this.hideBanner(panel);
+                return;
+            }
+
+            if (manual) this.setChecking(panel, true);
+
+            const remoteData = await this.getRemoteInfo(manual || FORCE_UPDATE_BANNER);
+            const status = await this.refreshStatus(panel);
+
+            if (manual) {
+                this.setChecking(panel, false);
+                this.showCheckResult(panel, status, currentVersion);
+            }
             let chromeInfo = remoteData && remoteData.chrome;
             if (!chromeInfo && FORCE_UPDATE_BANNER && currentVersion) {
                 chromeInfo = {
@@ -2752,19 +2914,82 @@ function getSettingsIconUrl(theme) {
                 }
             }
 
+            let source = 'github';
             let fresh = await this.fetchRemoteInfo();
             if (!fresh) {
+                source = 'bundled';
                 fresh = await this.fetchLocalVersionInfo();
             }
             if (fresh) {
                 await Storage.set(VERSION_CHECK_STORAGE_KEY, {
                     timestamp: now,
+                    source,
+                    lastAttemptFailed: false,
                     data: fresh
                 });
                 return fresh;
             }
 
+            // Keep the last known data but flag the attempt, so the footer read-out
+            // does not present a stale result as a fresh check
+            if (cached) {
+                await Storage.set(VERSION_CHECK_STORAGE_KEY, Object.assign({}, cached, { lastAttemptFailed: true }));
+            }
+
             return cached ? cached.data : null;
+        },
+
+        async refreshStatus(panel) {
+            const el = panel.querySelector('.sff-update-status-text');
+            if (!el) return null;
+
+            const cached = await Storage.get(VERSION_CHECK_STORAGE_KEY, null);
+            if (!cached || !cached.timestamp || !cached.data) {
+                el.textContent = 'Update check: not run';
+                return null;
+            }
+
+            const checked = new Date(cached.timestamp);
+            const pad = (value) => String(value).padStart(2, '0');
+            const stamp = `${pad(checked.getDate())}.${pad(checked.getMonth() + 1)} ${pad(checked.getHours())}:${pad(checked.getMinutes())}`;
+            const source = cached.source || 'unknown';
+            const failed = cached.lastAttemptFailed === true;
+            const failedLabel = failed ? ' · last check failed' : '';
+            const info = cached.data.chrome;
+
+            if (!info || !info.latest) {
+                el.textContent = `Update check: no data · ${source} · ${stamp}${failedLabel}`;
+                return { state: 'no-data', failed };
+            }
+
+            const latest = String(info.latest).trim();
+            const current = this.getCurrentVersion();
+            const outdated = current ? this.compareVersions(current, latest) < 0 : false;
+
+            el.textContent = outdated
+                ? `Update check: v${latest} available · ${source} · ${stamp}${failedLabel}`
+                : `Update check: latest v${latest} · ${source} · ${stamp}${failedLabel}`;
+
+            return { state: 'ok', failed, latest, current, outdated };
+        },
+
+        setChecking(panel, busy) {
+            const btn = panel.querySelector('.sff-update-check-now');
+            const text = panel.querySelector('.sff-update-status-text');
+            if (btn) btn.disabled = busy;
+            if (busy && text) text.textContent = 'Update check: checking…';
+        },
+
+        showCheckResult(panel, status, currentVersion) {
+            if (!status || status.failed || status.state !== 'ok') {
+                UIModule.showToast(panel, 'Update check failed', 'error');
+                return;
+            }
+
+            const message = status.outdated
+                ? `Update available: v${status.latest}`
+                : `You're up to date (v${currentVersion})`;
+            UIModule.showToast(panel, message, 'success');
         },
 
         async fetchRemoteInfo() {
@@ -2893,6 +3118,11 @@ function getSettingsIconUrl(theme) {
         },
 
         applySettings(panel) {
+            // Preset rules and the empty OFF list are display-only; never copy them into the saved
+            // configuration.
+            const activeMode = FILTER_MODES[settings.filterMode];
+            if (settings.filterMode === 'off' || (activeMode && activeMode.rules)) return;
+
             settings.keywords = panel.querySelector('.sff-keywords').value
                 .split(',')
                 .map(x => x.trim())
@@ -3018,6 +3248,8 @@ function getSettingsIconUrl(theme) {
                 settings.showSeeMoreButton = settings.seeMoreButtonMode !== 'never';
             }
 
+            // Keep the "Always allow me" shortcut in step with the list that was just typed.
+            this.syncAlwaysAllowMe(panel, settings.allowedAthletes);
             UtilsModule.saveSettings(settings);
             // Settings saved
         },
@@ -3039,24 +3271,8 @@ function getSettingsIconUrl(theme) {
             } else {
                 document.body.removeAttribute('data-sff-dashboard');
                 document.body.removeAttribute('data-sff-theme');
-                // On non-dashboard pages, apply global and embed settings
-                LogicModule.updateGiftVisibility();
-                LogicModule.updateStartTrialVisibility();
-                LogicModule.updateChallengesVisibility();
-                LogicModule.updateSuggestedFriendsVisibility();
-                LogicModule.updateYourClubsVisibility();
-                LogicModule.updateMyWindsockVisibility();
-                LogicModule.updateSummitbagVisibility();
-                LogicModule.updateRunHealthVisibility();
-                LogicModule.updateBandokVisibility();
-                LogicModule.updateCorosVisibility();
-                LogicModule.updateRouvyVisibility();
-                LogicModule.updateZwiftRouteVisibility();
-                LogicModule.updateJoinWorkoutVisibility();
-                LogicModule.updateCoachCatVisibility();
-                LogicModule.updateXertVisibility();
-                LogicModule.updateCyqlVisibility();
-                LogicModule.updateAthleteJoinedClubVisibility();
+                // On non-dashboard pages, apply global and embed settings under the active mode
+                LogicModule.applySectionFilters();
 
                 // On non-dashboard pages, still show a minimal secondary nav with filter/settings button
                 const miniNav = document.createElement('div');
@@ -3130,22 +3346,11 @@ function getSettingsIconUrl(theme) {
 
                 const settingsIcon = panel.querySelector('#sff-settings-icon');
                 if (settingsIcon) {
-                    settingsIcon.src = getSettingsIconUrl(settings.theme);
+                    settingsIcon.src = getSettingsIconUrl();
                 }
 
-                // Wire up the filter button to toggle the panel
-                miniFilterBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    panel.style.display = panel.style.display === 'none' || !panel.style.display ? 'block' : 'none';
-                });
-
-                // Close panel when clicking outside
-                document.addEventListener('click', (e) => {
-                    if (panel.style.display === 'block' && !panel.contains(e.target) && !miniFilterBtn.contains(e.target)) {
-                        panel.style.display = 'none';
-                    }
-                });
-
+                // The panel is wired up by setupEvents() below. It toggles the `show` class, which
+                // is the only thing that can beat `.sff-clean-panel { display: none !important }`.
                 this.setupEvents(null, panel, miniFilterBtn, null);
                 UpdateModule.init(panel);
                 return;
@@ -3281,7 +3486,7 @@ function getSettingsIconUrl(theme) {
             // Set the initial settings icon src after the panel is in the DOM
             const settingsIcon = panel.querySelector('#sff-settings-icon');
             if (settingsIcon) {
-                settingsIcon.src = getSettingsIconUrl(settings.theme);
+                settingsIcon.src = getSettingsIconUrl();
             }
 
             // Clean Filter: Elements added
@@ -3720,7 +3925,7 @@ function getSettingsIconUrl(theme) {
                 <div class="sff-header-main">
                     <h3>Strava Feed Filter</h3>
                 </div>
-                <button class="sff-close">×</button>
+                <button class="sff-close" title="Close">×</button>
             `;
             return header;
         },
@@ -3737,15 +3942,14 @@ function getSettingsIconUrl(theme) {
                 <div class="sff-toast"></div>
                 <div class="sff-update-banner" role="status" aria-live="polite"></div>
                 <div class="sff-view-filters">
-                    <div class="sff-toggle-section">
-                        <label class="sff-switch">
-                            <input type="checkbox" class="sff-enabled-toggle" ${settings.enabled ? 'checked' : ''}>
-                            <span class="sff-slider"></span>
-                        </label>
-                        <span class="sff-label">
-                            <span class="sff-toggle-text">FILTER ${settings.enabled ? 'ON' : 'OFF'}</span>
-                        </span>
-                        <button class="sff-settings-toggle" title="Settings" style="margin-left: auto; font-size: 20px; border: none; background: none; cursor: pointer; padding: 4px; line-height: 1; opacity: 0.8; transition: opacity 0.2s;"><img id="sff-settings-icon" src="" style="width: 30px; height: 30px; vertical-align: middle;"></button>
+                    <div class="sff-mode-section">
+                        <div class="sff-mode-title">Filter mode</div>
+                        <div class="sff-mode-bar" role="group" aria-label="Filter mode">
+                            ${FILTER_MODE_ORDER.map(mode => `
+                                <button type="button" class="sff-mode-btn${settings.filterMode === mode ? ' active' : ''}" data-mode="${mode}" aria-pressed="${settings.filterMode === mode}" title="${FILTER_MODES[mode].label}">${FILTER_MODES[mode].label}</button>
+                            `).join('')}
+                        </div>
+                        <p class="sff-mode-desc">${(FILTER_MODES[settings.filterMode] || FILTER_MODES.custom).description}</p>
                     </div>
                     <div class="sff-row sff-dropdown">
                         <div class="sff-dropdown-header">
@@ -3774,6 +3978,10 @@ function getSettingsIconUrl(theme) {
                         </div>
                         <div class="sff-dropdown-content">
                             <textarea class="sff-input sff-allowed-athletes" placeholder="e.g. John Doe, Jane Smith">${settings.allowedAthletes.join(', ')}</textarea>
+                            <label class="sff-chip" style="margin-top: 8px;">
+                                <input type="checkbox" class="sff-alwaysAllowMe">
+                                Always allow me
+                            </label>
                         </div>
                     </div>
                     <div class="sff-row sff-dropdown">
@@ -4055,7 +4263,8 @@ function getSettingsIconUrl(theme) {
                         </div>
                     </div>
                     <div class="sff-buttons">
-                        <button class="sff-btn-action sff-save">Apply & Refresh</button>
+                        <button class="sff-btn-action sff-save">✓ Apply & Refresh</button>
+                        <button type="button" class="sff-settings-toggle" title="Open settings"><img id="sff-settings-icon" src="" alt=""><span>Settings</span></button>
                     </div>
                     <div class="sff-footer">
                         <p class="sff-footer-text">If you find this extension useful, please support my work and help spread the word!</p>
@@ -4066,7 +4275,10 @@ function getSettingsIconUrl(theme) {
                             <button class="sff-share-btn" title="Share this extension">📤 Share</button>
                         </div>
                         <div class="sff-credits">
-                            <p>Developed By: <a href="https://github.com/Inc21" target="_blank">Inc21</a> · <a href="https://www.strava.com/athletes/2362084" target="_blank">Follow me on Strava</a></p>
+                            <p>
+                                <span>Developed By: <a href="https://github.com/Inc21" target="_blank">Inc21</a></span>
+                                <span><a href="https://www.strava.com/athletes/2362084" target="_blank">Follow me on Strava</a></span>
+                            </p>
                         </div>
                     </div>
                     <div class="sff-copyright">
@@ -4076,9 +4288,6 @@ function getSettingsIconUrl(theme) {
                 </div>
 
                 <div class="sff-view-settings">
-                    <button class="sff-back-btn">
-                        ← Back to Filters
-                    </button>
                     <p class="sff-settings-desc">
                         Manage your Strava Feed Filter settings.
                     </p>
@@ -4216,8 +4425,157 @@ function getSettingsIconUrl(theme) {
                         <button class="sff-settings-btn danger sff-action-reset">Reset to Defaults</button>
                         <span class="sff-info-icon" data-info="Clears all your custom settings and returns everything to default values. This will remove all keywords, athlete lists, filter criteria, and preferences. This action cannot be undone - consider exporting your settings first!">?</span>
                     </div>
+
+                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+                    <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #333;">Updates</h4>
+
+                    <div style="margin-bottom: 7.5px;">
+                        <div class="sff-label-with-info">
+                            <label class="sff-chip ${settings.autoUpdateCheck ? 'checked' : ''}">
+                                <input type="checkbox" class="sff-autoUpdateCheck" ${settings.autoUpdateCheck ? 'checked' : ''}>
+                                Check for updates automatically
+                            </label>
+                            <span class="sff-info-icon" data-info="Looks for a newer release on GitHub once every 24 hours and shows a banner in the filter panel when one is available. Turn it off to check only when you press Check now.">?</span>
+                        </div>
+                        <p id="sff-update-status" style="opacity: 0.7; margin: 6px 0 0 0; font-size: 11px;">
+                            <span class="sff-update-status-text">Update check: not run</span> ·
+                            <button type="button" class="sff-update-check-now">Check now</button>
+                        </p>
+                    </div>
+
+                    <button class="sff-back-btn">
+                        ← Back to Filters
+                    </button>
                 </div>
             `;
+        },
+
+        // Re-draw the filter mode bar (active pill + explanation box) from `settings.filterMode`.
+        refreshModeBar(panel) {
+            const root = panel || document.querySelector('.sff-clean-panel');
+            if (!root) return;
+            root.querySelectorAll('.sff-mode-btn').forEach(modeBtn => {
+                const isActive = modeBtn.dataset.mode === settings.filterMode;
+                modeBtn.classList.toggle('active', isActive);
+                modeBtn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+            const desc = root.querySelector('.sff-mode-desc');
+            if (desc) desc.textContent = (FILTER_MODES[settings.filterMode] || FILTER_MODES.custom).description;
+        },
+
+        // "Always allow me" is only a shortcut for having your own name in the allowed list, so its
+        // state is derived from that list instead of being stored on its own.
+        syncAlwaysAllowMe(root, names) {
+            const input = root.querySelector('.sff-alwaysAllowMe');
+            if (!input) return;
+            const selfName = UtilsModule.getLoggedInAthleteName();
+            const isAllowed = !!selfName && (names || []).includes(selfName);
+            input.checked = isAllowed;
+            const chip = input.closest('.sff-chip');
+            if (chip) chip.classList.toggle('checked', isAllowed);
+        },
+
+        // Mirror the configuration that is actually being applied into the filter list: the preset
+        // rules while a preset is active, otherwise the saved Custom settings. Nothing is written
+        // to storage here, so leaving a preset restores the user's own values in the UI.
+        syncFilterControls(panel) {
+            const root = panel || document.querySelector('.sff-clean-panel');
+            if (!root) return;
+            // Only the filter list follows the mode. The Settings view is never rewritten here, so
+            // theme, header buttons and activity options keep showing their own saved values.
+            const view = root.querySelector('.sff-view-filters') || root;
+            const activeMode = FILTER_MODES[settings.filterMode];
+            // Presets show their own rules, OFF shows an empty list because nothing is applied,
+            // Custom shows what is saved.
+            let src = settings;
+            if (activeMode && activeMode.rules) src = { ...settings, ...activeMode.rules };
+            else if (settings.filterMode === 'off') src = { ...settings, ...MODE_NEUTRAL };
+
+            const setValue = (selector, value) => {
+                const el = root.querySelector(selector);
+                if (el) el.value = value === undefined || value === null ? '' : value;
+            };
+            const setChip = (input, checked) => {
+                input.checked = !!checked;
+                const chip = input.closest('.sff-chip');
+                if (chip) chip.classList.toggle('checked', !!checked);
+            };
+
+            setValue('.sff-keywords', (src.keywords || []).join(', '));
+            // Presets always keep the signed-in athlete (see _withModePreset), so show that name too.
+            const allowedNames = [...(src.allowedAthletes || [])];
+            const selfName = activeMode && activeMode.rules ? UtilsModule.getLoggedInAthleteName() : '';
+            if (selfName && !allowedNames.includes(selfName)) allowedNames.push(selfName);
+            setValue('.sff-allowed-athletes', allowedNames.join(', '));
+            this.syncAlwaysAllowMe(root, allowedNames);
+            setValue('.sff-ignored-athletes', (src.ignoredAthletes || []).join(', '));
+            setValue('.sff-devices-custom', src.recordingDevicesCustom || '');
+            setValue('.sff-customEmbedFilters', src.customEmbedFilters || '');
+            ['minKm', 'maxKm', 'minMins', 'maxMins', 'minElevM', 'maxElevM'].forEach(key => setValue(`.sff-${key}`, src[key]));
+            setValue('.sff-minPace', UtilsModule.formatPaceForDisplay(src.minPace));
+            setValue('.sff-maxPace', UtilsModule.formatPaceForDisplay(src.maxPace));
+
+            view.querySelectorAll('input[data-typ]').forEach(cb => setChip(cb, src.types && src.types[cb.dataset.typ]));
+            view.querySelectorAll('input[data-tag]').forEach(cb => setChip(cb, (src.activityTags || []).includes(cb.dataset.tag)));
+            view.querySelectorAll('input[data-device]').forEach(cb => setChip(cb, (src.recordingDevices || []).includes(cb.dataset.device)));
+
+            view.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                if (cb.dataset.typ || cb.dataset.tag || cb.dataset.device) return;
+                const className = Array.from(cb.classList).find(cls => cls.startsWith('sff-'));
+                if (!className) return;
+                const key = className.slice(4) === 'hideGift' ? 'hideGiveGift' : className.slice(4);
+                if (!(key in src)) return;
+                setChip(cb, src[key]);
+            });
+
+            // The "hide all" chips follow their group instead of a single flag.
+            const syncGroup = (allSelector, groupSelector) => {
+                const all = view.querySelector(allSelector);
+                const boxes = Array.from(view.querySelectorAll(groupSelector));
+                if (all && boxes.length) setChip(all, boxes.every(box => box.checked));
+            };
+            syncGroup('.sff-hideAllEmbeds', '.sff-embeds-grid input[type="checkbox"]');
+            syncGroup('.sff-hideAllTags', '.sff-tag-checkbox');
+            syncGroup('.sff-hideAllDevices', '.sff-devices input[type="checkbox"]');
+
+            // The "x hidden / y total" hint is derived from the type chips, so refresh it too.
+            this.updateActivityCount(root);
+
+            root.querySelector('.sff-keywords')?.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+
+        // Switch modes. Presets never write their rules into the saved settings; they are overlaid
+        // only while filters run, so Custom keeps the user's own configuration intact.
+        applyFilterMode(panel, mode) {
+            if (!FILTER_MODES[mode]) mode = 'custom';
+            settings.filterMode = mode;
+            settings.enabled = mode !== 'off';
+            UtilsModule.saveSettings(settings);
+            this.refreshAllPanels();
+            LogicModule.applyAllFilters();
+        },
+
+        // The main and secondary navs can each hold a panel, so refresh every instance.
+        refreshAllPanels() {
+            document.querySelectorAll('.sff-clean-panel').forEach(root => {
+                this.refreshModeBar(root);
+                this.syncFilterControls(root);
+            });
+        },
+
+        // Ask before dropping a preset. Returns true when it is fine to carry on.
+        ensureCustomMode(panel) {
+            const activeMode = FILTER_MODES[settings.filterMode];
+            if (!activeMode || !activeMode.rules) {
+                // OFF shows an empty list, so the first edit has to start from Custom values.
+                if (settings.filterMode === 'off') this.applyFilterMode(panel, 'custom');
+                return true;
+            }
+            const proceed = window.confirm(`Changing a filter switches the mode to Custom. The ${activeMode.label.toLowerCase()} preset will no longer be applied. Continue?`);
+            if (!proceed) return false;
+            this.applyFilterMode(panel, 'custom');
+            return true;
         },
 
         setupEvents(btn, panel, secondaryFilterBtn, secondaryKudosBtn) {
@@ -4240,13 +4598,22 @@ function getSettingsIconUrl(theme) {
                 keywordsTextarea.addEventListener('input', autoResizeKeywords);
             }
             
+            const showSettingsView = () => {
+                filtersView.classList.add('hidden');
+                settingsView.classList.add('active');
+                if (settingsToggle) settingsToggle.classList.add('active');
+            };
+            const showFiltersView = () => {
+                settingsView.classList.remove('active');
+                filtersView.classList.remove('hidden');
+                if (settingsToggle) settingsToggle.classList.remove('active');
+            };
+
             if (settingsToggle) {
                 settingsToggle.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    filtersView.classList.add('hidden');
-                    settingsView.classList.add('active');
-                    settingsToggle.style.opacity = '0';
-                    settingsToggle.style.pointerEvents = 'none';
+                    if (settingsView.classList.contains('active')) showFiltersView();
+                    else showSettingsView();
                 });
             }
 
@@ -4254,13 +4621,49 @@ function getSettingsIconUrl(theme) {
             if (backBtn) {
                 backBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    settingsView.classList.remove('active');
-                    filtersView.classList.remove('hidden');
-                    if (settingsToggle) {
-                        settingsToggle.style.opacity = '0.8';
-                        settingsToggle.style.pointerEvents = 'auto';
-                    }
+                    showFiltersView();
                 });
+            }
+
+            // Filter mode bar
+            panel.querySelectorAll('.sff-mode-btn').forEach(modeBtn => {
+                modeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.applyFilterMode(panel, modeBtn.dataset.mode);
+                });
+            });
+
+            // A preset can be active from a previous session, so the list starts in sync with it.
+            this.syncFilterControls(panel);
+
+            // Editing any control leaves a preset (presets are an overlay, so a change made while
+            // one is active would never be seen). Ask first, then fall through to the normal handler.
+            if (filtersView) {
+                let suppressFilterClick = false;
+                const isModeControl = (el) => !!el.closest('.sff-mode-section');
+                const isFilterControl = (el) => !!el.closest('input, textarea, select, label, .sff-keyword-preset-btn, .sff-types-select, .sff-unit-btn');
+
+                filtersView.addEventListener('pointerdown', (e) => {
+                    if (isModeControl(e.target) || !isFilterControl(e.target)) return;
+                    if (this.ensureCustomMode(panel)) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    suppressFilterClick = true;
+                    setTimeout(() => { suppressFilterClick = false; }, 500);
+                }, true);
+
+                filtersView.addEventListener('click', (e) => {
+                    if (!suppressFilterClick) return;
+                    suppressFilterClick = false;
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, true);
+
+                // Keyboard entry can reach a control without a pointerdown, so guard focus too.
+                filtersView.addEventListener('focusin', (e) => {
+                    if (isModeControl(e.target) || !isFilterControl(e.target)) return;
+                    if (!this.ensureCustomMode(panel)) e.target.blur();
+                }, true);
             }
 
             if (themeRadios && themeRadios.length) {
@@ -4293,7 +4696,7 @@ function getSettingsIconUrl(theme) {
 
                         const settingsIcon = document.getElementById('sff-settings-icon');
                         if (settingsIcon) {
-                            settingsIcon.src = getSettingsIconUrl(settings.theme);
+                            settingsIcon.src = getSettingsIconUrl();
                         }
 
                         UtilsModule.saveSettings(settings);
@@ -4565,6 +4968,17 @@ function getSettingsIconUrl(theme) {
                 // Could not get manifest version
             }
 
+            // Manual re-check for the update banner, plus a read-out of the last check
+            const updateCheckNow = panel.querySelector('.sff-update-check-now');
+            if (updateCheckNow) {
+                updateCheckNow.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    UpdateModule.init(panel, { force: true });
+                });
+            }
+            UpdateModule.refreshStatus(panel);
+
             // Track if we're currently resizing to prevent click-outside from firing
             let isCurrentlyResizing = false;
 
@@ -4644,7 +5058,9 @@ function getSettingsIconUrl(theme) {
                     });
 
                     // Position panel directly under the active button
-                    const activeBtn = (window.innerWidth <= 1479 && secondaryFilterBtn) ? secondaryFilterBtn : btn;
+                    // On activity pages there is no header button, so the row button is the only
+                    // anchor the panel can be placed under.
+                    const activeBtn = (window.innerWidth <= 1479 && secondaryFilterBtn) ? secondaryFilterBtn : (btn || secondaryFilterBtn);
                     const btnRect = activeBtn.getBoundingClientRect();
                     const gap = 5; // Small gap between button and panel
 
@@ -4657,6 +5073,9 @@ function getSettingsIconUrl(theme) {
                     panel.style.visibility = 'visible';
                     panel.style.opacity = '1';
                     panel.classList.add('show');
+
+                    // The mode may have changed from the popup or another panel while this one was closed.
+                    this.syncFilterControls(panel);
 
                     // Ensure panel stays within viewport after positioning
                     this.keepInViewport(panel);
@@ -4761,18 +5180,34 @@ function getSettingsIconUrl(theme) {
 
             // Checkbox styling and real-time updates
             panel.addEventListener('change', (e) => {
+                // Editing anything in the filter list leaves the preset it was made in; presets are
+                // an overlay on top of `settings`, so the change would otherwise never show up.
+                if (e.target.closest('.sff-view-filters') && !e.target.closest('.sff-mode-section') && FILTER_MODES[settings.filterMode] && FILTER_MODES[settings.filterMode].rules) {
+                    this.applyFilterMode(panel, 'custom');
+                }
+
                 if (e.target.type === 'checkbox') {
                     const chip = e.target.closest('.sff-chip');
                     if (chip) chip.classList.toggle('checked', e.target.checked);
 
-                    // Master enable toggle
-                    if (e.target.classList.contains('sff-enabled-toggle')) {
-                        settings.enabled = e.target.checked;
+                    // "Always allow me": write (or remove) the signed-in athlete's own name
+                    if (e.target.classList.contains('sff-alwaysAllowMe')) {
+                        const selfName = UtilsModule.getLoggedInAthleteName();
+                        const names = (settings.allowedAthletes || []).filter(Boolean);
+                        if (!selfName) {
+                            UIModule.showToast(panel, 'Could not find your name in the header menu', 'error');
+                        } else if (e.target.checked) {
+                            if (!names.includes(selfName)) names.push(selfName);
+                        } else {
+                            const index = names.indexOf(selfName);
+                            if (index !== -1) names.splice(index, 1);
+                        }
+                        settings.allowedAthletes = names;
+                        const allowedBox = panel.querySelector('.sff-allowed-athletes');
+                        if (allowedBox) allowedBox.value = names.join(', ');
                         UtilsModule.saveSettings(settings);
-                        const toggleText = document.querySelector('.sff-toggle-text');
-                        if (toggleText) toggleText.textContent = `FILTER ${settings.enabled ? 'ON' : 'OFF'}`;
-                        LogicModule.applyAllFilters();
-                        return; // Other toggles not relevant when flipping master
+                        this.syncAlwaysAllowMe(panel, names);
+                        LogicModule.filterActivities();
                     }
 
                     // Header kudos toggle
@@ -4795,6 +5230,17 @@ function getSettingsIconUrl(theme) {
                         settings.compactButtons = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         UIModule.applyCompactMode();
+                    }
+
+                    // Automatic update checks
+                    if (e.target.classList.contains('sff-autoUpdateCheck')) {
+                        settings.autoUpdateCheck = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        if (settings.autoUpdateCheck) {
+                            UpdateModule.init(panel, { force: true });
+                        } else {
+                            UpdateModule.hideBanner(panel);
+                        }
                     }
 
                     // Gift button
@@ -5111,6 +5557,8 @@ function getSettingsIconUrl(theme) {
 
                     // Re-apply see-more buttons immediately
                     LogicModule.manageSeeMoreButtons();
+                    // The detail-page grid follows the same setting, without a reload
+                    LogicModule.syncDetailPageStats();
                 }
             });
 
@@ -5527,6 +5975,8 @@ function getSettingsIconUrl(theme) {
                 // Re-evaluate visibility of "Show more stats" buttons on viewport changes
                 try {
                     LogicModule.manageSeeMoreButtons();
+                    // The detail-page grid follows the same breakpoint
+                    LogicModule.syncDetailPageStats();
                 } catch (e) {}
             });
         },
@@ -6452,7 +6902,35 @@ function getSettingsIconUrl(theme) {
             return hiddenSectionsCount;
         },
 
-        filterActivities() {
+        // Preset modes are an overlay: their rules are swapped into `settings` for the duration of
+        // the filter run and the original values (including object references) are restored after.
+        _withModePreset(run) {
+            const activeMode = FILTER_MODES[settings.filterMode];
+            const preset = activeMode && activeMode.rules;
+            if (!preset) return run();
+            const original = {};
+            Object.keys(preset).forEach(key => {
+                original[key] = settings[key];
+                settings[key] = preset[key];
+            });
+            // Presets never hide the signed-in athlete's own entries, whatever their rules say.
+            const allowed = settings.allowedAthletes || [];
+            const selfName = UtilsModule.getLoggedInAthleteName();
+            if (selfName && !allowed.includes(selfName)) {
+                settings.allowedAthletes = [...allowed, selfName];
+            }
+            try {
+                return run();
+            } finally {
+                Object.keys(original).forEach(key => { settings[key] = original[key]; });
+            }
+        },
+
+filterActivities() {
+            return this._withModePreset(() => this._filterActivitiesCore());
+        },
+
+        _filterActivitiesCore() {
             const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
 
             if (!settings.enabled) {
@@ -6991,24 +7469,9 @@ function getSettingsIconUrl(theme) {
             const debouncedFilter = UtilsModule.debounce(() => {
                 try {
                     this.filterActivities();
-                    this.updateGiftVisibility();
-                    this.updateStartTrialVisibility();
-                    this.updateChallengesVisibility();
-                    this.updateSuggestedFriendsVisibility();
-                    this.updateYourClubsVisibility();
-                    this.updateMyWindsockVisibility();
-                    this.updateWandrerVisibility();
-                    this.updateSummitbagVisibility();
-                    this.updateRunHealthVisibility();
-                    this.updateBandokVisibility();
-                    this.updateCorosVisibility();
-                    this.updateRouvyVisibility();
-                    this.updateJoinWorkoutVisibility();
-                    this.updateCoachCatVisibility();
-                    this.updateXertVisibility();
-                    this.updateCyqlVisibility();
-                    this.updateAthleteJoinedClubVisibility();
-                    this.updateVideoAutoplayControl();
+                    // Sections and embeds read `settings.*` directly, so they have to run under the
+                    // active mode too; otherwise every scroll re-applies the saved Custom flags.
+                    this.applySectionFilters();
                     this.manageSeeMoreButtons();
                 } catch (e) {
                     // Auto-filter error
@@ -7084,29 +7547,49 @@ function getSettingsIconUrl(theme) {
 
         // Master function to apply all filters (activities and sections) based on enabled state
         applyAllFilters() {
+            return this._withModePreset(() => this._applyAllFiltersCore());
+        },
+
+        // The section, embed and Other helpers read `settings.*` directly, so they have to run
+        // under the active mode as well. The feed observer and the scroll handlers call this on
+        // every change; without the preset they re-applied the saved Custom flags and quietly
+        // undid the current mode (e.g. joined-club entries hidden again in LIGHT).
+        applySectionFilters() {
+            return this._withModePreset(() => this._applySectionFiltersCore());
+        },
+
+        _applySectionFiltersCore() {
+            this.updateGiftVisibility();
+            this.updateStartTrialVisibility();
+            this.updateChallengesVisibility();
+            this.updateFooterVisibility();
+            this.updateJoinedChallengesVisibility();
+            this.updateSuggestedFriendsVisibility();
+            this.updateYourClubsVisibility();
+            this.updateMyWindsockVisibility();
+            this.updateWandrerVisibility();
+            this.updateSummitbagVisibility();
+            this.updateRunHealthVisibility();
+            this.updateBandokVisibility();
+            this.updateCorosVisibility();
+            this.updateRouvyVisibility();
+            this.updateZwiftRouteVisibility();
+            this.updateJoinWorkoutVisibility();
+            this.updateCoachCatVisibility();
+            this.updateXertVisibility();
+            this.updateCyqlVisibility();
+            this.updateEvisoVisibility();
+            this.updateRestortrainVisibility();
+            this.updateCustomEmbedVisibility();
+            this.updateAthleteJoinedClubVisibility();
+            this.updateVideoAutoplayControl();
+        },
+
+        _applyAllFiltersCore() {
             if (settings.enabled) {
                 // When filter is enabled, apply all filtering
                 this.filterActivities();
-                this.updateGiftVisibility();
-                this.updateStartTrialVisibility();
-                this.updateChallengesVisibility();
-                this.updateFooterVisibility();
-                this.updateJoinedChallengesVisibility();
-                this.updateSuggestedFriendsVisibility();
-                this.updateYourClubsVisibility();
-                this.updateMyWindsockVisibility();
-                this.updateWandrerVisibility();
-                this.updateSummitbagVisibility();
-                this.updateRunHealthVisibility();
-                this.updateBandokVisibility();
-                this.updateCorosVisibility();
-                this.updateRouvyVisibility();
-                this.updateJoinWorkoutVisibility();
-                this.updateCoachCatVisibility();
-                this.updateXertVisibility();
-                this.updateCyqlVisibility();
-                this.updateAthleteJoinedClubVisibility();
-                this.updateVideoAutoplayControl();
+                this._applySectionFiltersCore();
                 this.manageHeaderKudosButton();
                 UIModule.syncSecondaryKudosVisibility();
                 this.manageSeeMoreButtons();
@@ -7180,22 +7663,7 @@ function getSettingsIconUrl(theme) {
 
         manageSeeMoreButtons() {
             // Determine visibility based on 3-way mode + screen width, with legacy fallback
-            let mode = settings.seeMoreButtonMode;
-            if (!mode) {
-                mode = settings.showSeeMoreButton === false ? 'never' : 'always';
-            }
-
-            const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth || 0;
-            const isSmall = width <= 990;
-
-            let shouldShow = false;
-            if (mode === 'always') {
-                shouldShow = true;
-            } else if (mode === 'smallOnly') {
-                shouldShow = isSmall;
-            } else if (mode === 'never') {
-                shouldShow = false;
-            }
+            const shouldShow = UtilsModule.shouldShowExtraStats();
 
             if (!settings.enabled || !shouldShow) {
                 // Remove all existing buttons if feature is disabled or should not show for this mode/viewport
@@ -7937,19 +8405,36 @@ function getSettingsIconUrl(theme) {
             } catch (e) { /* setupBackToTopButton error */ }
         },
 
+        // Keep the detail-page grid in step with a changed "Show more stats" setting, no reload.
+        syncDetailPageStats() {
+            if (!UtilsModule.isOnActivityPage()) return;
+            if (settings.enabled && UtilsModule.shouldShowExtraStats()) {
+                this.renderDetailPageStats();
+                return;
+            }
+            document.querySelectorAll('.sff-detail-stats').forEach(el => el.remove());
+            document.body.removeAttribute('data-sff-detail-stats');
+        },
+
         async renderDetailPageStats() {
             try {
                 if (!settings.enabled) return;
                 if (!UtilsModule.isOnActivityPage()) return;
-                let mode = settings.seeMoreButtonMode;
-                if (!mode) mode = settings.showSeeMoreButton === false ? 'never' : 'always';
-                if (mode === 'never') return;
+                // Same three-way rule as the feed buttons, so "only on small screens" and "never"
+                // hold on the detail page too.
+                if (!UtilsModule.shouldShowExtraStats()) return;
                 if (document.querySelector('.sff-detail-stats')) return;
+                // Resizes can call this while the first fetch is still running.
+                if (this._detailStatsLoading) return;
+                this._detailStatsLoading = true;
 
                 const activityId = window.location.pathname.match(/\/activities\/(\d+)/)?.[1];
                 if (!activityId) return;
 
                 const stats = await this.fetchActivityStats(activityId, null);
+                // The window can cross the breakpoint while the fetch is running, so the grid
+                // must not be inserted on a width where the setting no longer allows it.
+                if (!settings.enabled || !UtilsModule.shouldShowExtraStats()) return;
                 const organized = this.organizeStats(stats);
                 if (organized.length === 0) return;
 
@@ -7974,6 +8459,8 @@ function getSettingsIconUrl(theme) {
                 document.body.setAttribute('data-sff-detail-stats', 'true');
             } catch (e) {
                 // renderDetailPageStats error
+            } finally {
+                this._detailStatsLoading = false;
             }
         },
 
@@ -8414,7 +8901,11 @@ function getSettingsIconUrl(theme) {
     // Strava forces a min-width on the viewport, so window.innerWidth and CSS
     // media queries never reflect the real browser window size.  We use
     // window.outerWidth instead and drive everything from JS.
-    const SFF_MOBILE_BREAKPOINT = 765;
+    //
+    // The activity page's desktop layout needs ~1305 px, and below that it only
+    // overflowed the window, so the mobile layout covers everything up to that
+    // width: phones, sideways phones, tablets and narrow desktop windows.
+    const SFF_MOBILE_BREAKPOINT = 1305;
 
     function sffIsMobileWidth() {
         return window.outerWidth <= SFF_MOBILE_BREAKPOINT;
@@ -8765,6 +9256,13 @@ function getSettingsIconUrl(theme) {
                 -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
             }
 
+            /* The distance labels sit flush with the bottom of the chart, and the pan
+               bar occupies the scroller's bottom 10px, so reserve room under the SVG
+               instead of letting the bar run over the labels. */
+            body[data-sff-mobile] #elevation-chart {
+                padding-bottom: 16px !important;
+            }
+
             /* Persistent pan indicator: our own always-visible bar synced to
                the scroller's position (see LogicModule.setupMobilePanHelpers) */
             body[data-sff-mobile] .sff-pan-indicator {
@@ -8855,16 +9353,34 @@ function getSettingsIconUrl(theme) {
             /* Chart selector table (Pace/GAP/Cadence/Temperature): give it its
                natural width and stop values like "5:46 /km" wrapping in two */
             body[data-sff-mobile] #chart-controls {
+                display: block !important;
                 width: 100% !important;
-                justify-content: center !important;
+                /* The elevation chart is a fixed 960 px SVG, so a percentage alone can
+                   resolve against that width and centre the rows off-screen. */
+                max-width: 100vw !important;
+                float: none !important;
+                margin: 0 !important;
+                padding: 0 4px !important;
+                box-sizing: border-box !important;
+                text-align: center !important;
+                overflow-x: auto !important;
             }
+            /* Centre each row. Auto margins also keep a row that is wider than the
+               screen anchored to the left and reachable by scrolling, instead of
+               clipping its first column. Runs bring Pace/GAP/temperature columns
+               that a ride does not have, so the table cannot be sized on a count. */
             body[data-sff-mobile] #chart-controls table {
+                display: table !important;
                 width: auto !important;
                 max-width: 100% !important;
+                float: none !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
             }
             body[data-sff-mobile] #chart-controls td,
             body[data-sff-mobile] #chart-controls th {
                 white-space: nowrap !important;
+                padding: 2px 6px !important;
             }
 
             /* ---- Segment efforts table ---- */
@@ -8915,19 +9431,32 @@ function getSettingsIconUrl(theme) {
             }
 
             /* ---- Global header: compact mobile layout ---- */
+            /* Strava's desktop header is built for ~1288 px and keeps a minimum of
+               its own. Below that the row is wider than the window, and because the
+               page clamp hides horizontal overflow the right-hand cluster (hamburger,
+               search, avatar) ended up off the edge instead of scrolling to. Hold the
+               header and every flex step down the chain to the viewport width, and let
+               them shrink (min-width: 0 overrides the automatic minimum of a flex
+               item), so the cluster stays inside the window. */
+            body[data-sff-mobile] #global-header,
+            body[data-sff-mobile] #global-header .container,
+            body[data-sff-mobile] #global-header nav.nav-bar,
+            body[data-sff-mobile] #global-header .nav-container {
+                width: 100% !important;
+                max-width: 100vw !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
+            }
+
             body[data-sff-mobile] #global-header nav.nav-bar {
                 display: flex !important;
                 align-items: center !important;
                 padding: 0 8px !important;
                 min-height: 48px !important;
-                width: 100% !important;
-                max-width: 100% !important;
                 flex-wrap: nowrap !important;
             }
 
             body[data-sff-mobile] #global-header .container {
-                width: 100% !important;
-                max-width: 100% !important;
                 padding: 0 !important;
             }
 
@@ -8982,10 +9511,16 @@ function getSettingsIconUrl(theme) {
             body[data-sff-mobile] .user-nav {
                 display: flex !important;
                 align-items: center !important;
+                justify-content: flex-end !important;
                 gap: 2px !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 list-style: none !important;
+                /* Never shrink the cluster itself: it is the part that has to stay
+                   visible, and the row above gives up the space instead. */
+                flex: 0 0 auto !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
             }
 
             /* Search bar: compact */
@@ -9287,6 +9822,16 @@ function getSettingsIconUrl(theme) {
                 el.style.cssText = '';
                 el.removeAttribute('data-sff-mobile-inline');
             });
+            // The html/body overrides in the mobile branch are written without the marker
+            // above, so nothing else would ever take them off: a window widened past the
+            // breakpoint kept `overflow-x: hidden` and `width: 100%`, which clips Strava's
+            // own desktop layout instead of letting it scroll sideways.
+            document.documentElement.style.removeProperty('min-width');
+            document.documentElement.style.removeProperty('width');
+            document.documentElement.style.removeProperty('overflow-x');
+            document.body.style.removeProperty('min-width');
+            document.body.style.removeProperty('width');
+            document.body.style.removeProperty('overflow-x');
             applyTinyVerticalScrollFix();
             return;
         }
@@ -9561,41 +10106,8 @@ function getSettingsIconUrl(theme) {
         if (globalFeaturesInitialized) return;
         globalFeaturesInitialized = true;
 
-        // Apply gift button hiding immediately
-        LogicModule.updateGiftVisibility();
-        
-        // Apply Start Trial button hiding immediately
-        LogicModule.updateStartTrialVisibility();
-
-        // Apply challenges section hiding immediately
-        LogicModule.updateChallengesVisibility();
-
-        // Apply suggested friends section hiding immediately
-        LogicModule.updateSuggestedFriendsVisibility();
-
-        // Apply your clubs section hiding immediately
-        LogicModule.updateYourClubsVisibility();
-
-        // Apply footer hiding immediately
-        LogicModule.updateFooterVisibility();
-
-        // Apply external service embed hiding immediately
-        LogicModule.updateMyWindsockVisibility();
-        LogicModule.updateWandrerVisibility();
-        LogicModule.updateSummitbagVisibility();
-        LogicModule.updateRunHealthVisibility();
-        LogicModule.updateBandokVisibility();
-        LogicModule.updateCorosVisibility();
-        LogicModule.updateRouvyVisibility();
-        LogicModule.updateZwiftRouteVisibility();
-        LogicModule.updateJoinWorkoutVisibility();
-        LogicModule.updateCoachCatVisibility();
-        LogicModule.updateXertVisibility();
-        LogicModule.updateCyqlVisibility();
-        LogicModule.updateEvisoVisibility();
-        LogicModule.updateRestortrainVisibility();
-        LogicModule.updateCustomEmbedVisibility();
-        LogicModule.updateVideoAutoplayControl();
+        // Apply the saved sections, embeds and Other filters straight away, under the active mode
+        LogicModule.applySectionFilters();
 
         // Apply mobile responsive layout on activity pages
         applyMobileResponsive();
@@ -9608,29 +10120,7 @@ function getSettingsIconUrl(theme) {
 
         // Setup observer for dynamically loaded content to hide gift buttons and challenges
         const observer = new MutationObserver(() => {
-            LogicModule.updateGiftVisibility();
-            LogicModule.updateStartTrialVisibility();
-            LogicModule.updateChallengesVisibility();
-            LogicModule.updateFooterVisibility();
-            LogicModule.updateJoinedChallengesVisibility();
-            LogicModule.updateSuggestedFriendsVisibility();
-            LogicModule.updateYourClubsVisibility();
-            LogicModule.updateMyWindsockVisibility();
-            LogicModule.updateWandrerVisibility();
-            LogicModule.updateSummitbagVisibility();
-            LogicModule.updateRunHealthVisibility();
-            LogicModule.updateBandokVisibility();
-            LogicModule.updateCorosVisibility();
-            LogicModule.updateRouvyVisibility();
-            LogicModule.updateZwiftRouteVisibility();
-            LogicModule.updateJoinWorkoutVisibility();
-            LogicModule.updateCoachCatVisibility();
-            LogicModule.updateXertVisibility();
-            LogicModule.updateCyqlVisibility();
-            LogicModule.updateEvisoVisibility();
-            LogicModule.updateRestortrainVisibility();
-            LogicModule.updateCustomEmbedVisibility();
-            LogicModule.updateVideoAutoplayControl();
+            LogicModule.applySectionFilters();
         });
         observer.observe(document.body, { childList: true, subtree: true });
 
@@ -9639,21 +10129,7 @@ function getSettingsIconUrl(theme) {
 
         // Re-apply embed filters on scroll to handle lazy-loaded content
         window.addEventListener('scroll', () => {
-            LogicModule.updateMyWindsockVisibility();
-            LogicModule.updateWandrerVisibility();
-            LogicModule.updateSummitbagVisibility();
-            LogicModule.updateRunHealthVisibility();
-            LogicModule.updateBandokVisibility();
-            LogicModule.updateCorosVisibility();
-            LogicModule.updateRouvyVisibility();
-            LogicModule.updateZwiftRouteVisibility();
-            LogicModule.updateJoinWorkoutVisibility();
-            LogicModule.updateCoachCatVisibility();
-            LogicModule.updateXertVisibility();
-            LogicModule.updateCyqlVisibility();
-            LogicModule.updateEvisoVisibility();
-            LogicModule.updateRestortrainVisibility();
-            LogicModule.updateVideoAutoplayControl();
+            LogicModule.applySectionFilters();
         }, { passive: true });
 
         // Performance: Disconnect global observer when user is inactive for better battery life
@@ -9757,17 +10233,14 @@ function getSettingsIconUrl(theme) {
         const messageHandler = (msg) => {
             if (msg && msg.type === 'SFF_TOGGLE_ENABLED') {
                 settings.enabled = !!msg.enabled;
+                settings.filterMode = settings.enabled ? 'custom' : 'off';
                 try { UtilsModule.saveSettings(settings); } catch (e) {}
-                // On dashboard: ensure UI exists and update toggle state
+                // On dashboard: ensure UI exists and update the mode bar state
                 if (UtilsModule.isOnDashboard()) {
                     if (!document.querySelector('.sff-clean-panel')) {
                         try { UIModule.createElements(); } catch (e) {}
                     }
-                    // Update toggle checkbox and text to reflect new state
-                    const toggleCheckbox = document.querySelector('.sff-enabled-toggle');
-                    const toggleText = document.querySelector('.sff-toggle-text');
-                    if (toggleCheckbox) toggleCheckbox.checked = settings.enabled;
-                    if (toggleText) toggleText.textContent = `FILTER ${settings.enabled ? 'ON' : 'OFF'}`;
+                    UIModule.refreshAllPanels();
                     
                     try { UIModule.syncSecondaryKudosVisibility(); } catch (e) {}
                     try { LogicModule.filterActivities(); } catch (e) {}

@@ -1,5 +1,64 @@
 # Changelog
 
+## [v2.8.2] - 24.10.2026 (Firefox & Chrome Extensions)
+
+Work in progress — entries are added as we go.
+
+### v2.8.2 New Features
+
+- **Filter Modes (Off / Light / Medium / Strict / Custom)**
+  - The on/off switch at the top of the panel is now a five-button mode bar — OFF, LIGHT, MEDIUM, STRICT, CUSTOM — with one mode active at a time. Settings moved out of the header into an outlined button beside Apply & Refresh, styled like the footer buttons.
+  - LIGHT hides virtual rides, runs and rows, Indoor Cycling and Treadmill activities, activities without a map, and anything under 1 km or 2 minutes. MEDIUM adds the remaining indoor sports, the Commute tag, Suggested Friends, Strava promo posts and joined club/challenge entries, and raises the minimums to 2 km / 10 minutes. STRICT adds the warm-up and cool-down keywords, hides every type but the main outdoor sports, enables all third-party embeds, the footer and the Other filters, and raises the minimums to 5 km / 20 minutes.
+  - A line under the bar describes the selected mode, and the filter list shows that mode's values, so every section states exactly what it hides. Your custom values return untouched when you switch back to CUSTOM.
+  - OFF applies nothing and shows 0 hidden; the first control you touch switches the mode back to CUSTOM with your saved values.
+  - Modes are presets applied on top of the feed, never saved filters: your custom configuration is left alone, including for export/import. Editing a control while a preset is active asks once whether to switch to CUSTOM, then applies to your own configuration.
+  - Your own activities are always kept — every preset lists your name in Allowed Athletes — and the Settings view keeps its own values and stays editable in every mode.
+
+- **Always Allow Me**
+  - New "Always allow me" checkbox under Allowed Athletes: in CUSTOM it adds your name to the list in one click, and unticking removes it again.
+  - It is derived from the list rather than stored separately, so the box stays the single place where the list lives.
+
+### v2.8.2 Bug Fixes
+
+- **Strava's Header Buttons Were Pushed Off the Screen**
+  - The header needs about 1288 px and keeps a minimum width of its own, so once the mobile layout took over the page clamp hid the overflow and the hamburger, search and avatar sat past the right edge with no way to scroll to them.
+  - The header and its containers are now held to the viewport width and allowed to shrink, while the user cluster keeps its size so the row gives up the space instead.
+
+- **Update Banner Could Be Skipped Silently**
+  - The bundled `version.json` fallback never loaded because the file was not exposed as a web-accessible resource, so a failed GitHub check (offline, outage, proxy) produced no banner at all. It is now listed in `web_accessible_resources` for both extensions.
+
+- **"Show more stats" Ignored the Activity Detail Page**
+  - The setting (Always / Only on small screens / Never) drove the feed buttons, but the extra-stats grid on an activity detail page only honoured "Never": on a desktop it appeared even with "Only on small screens" selected.
+  - Both now read one rule (`UtilsModule.shouldShowExtraStats`), so the grid shows at ≤ 990 px for "Only on small screens", always for "Always", and never for "Never". A change applies immediately, without a reload.
+
+- **Activity Page Ignored the Stats Breakpoint on Resize**
+  - The "only on small screens" breakpoint (≤ 990 px) for the extra-stats grid was evaluated on load and on a setting change only, so enlarging the window left the grid in place until a refresh. The resize handler now re-runs it.
+  - On a wide screen an activity page also had no way into the panel: the SFF row was only shown by the narrow layout and the header filter button exists on the dashboard only. The row now shows at every width on activity pages.
+
+- **Run Charts Off-Centre and Pan Bar Over the Distance Labels**
+  - The Pace / GAP / Heart Rate / Cadence / Temperature row is one native table that carries its own alignment, and a run brings more columns than a ride; on the narrow layout it sat against the right edge with its last values clipped. It is now centred through its own margins, scrolls sideways on very narrow screens, and uses tighter cell padding.
+  - The orange pan bar sat on top of the distance labels under the chart. The scroller now reserves 16 px below the chart.
+
+- **Activity Page Stayed Clipped After Widening Past the Mobile Breakpoint**
+  - The mobile layout writes `min-width: 0`, `width: 100%` and `overflow-x: hidden` onto `<html>` and `<body>`, but only the marked elements were restored when the window widened again — so the page kept `overflow-x: hidden` above the breakpoint and the activity layout was cut off at the right edge.
+  - Those inline properties are now cleared with the other mobile overrides.
+
+### v2.8.2 Improvements
+
+- **Back to Filters Moved to the End of Settings**
+  - The button sat above the first setting, competing with the description. It is now the last item, after Updates, so it reads as a "done" button, with the spacing flipped to above it.
+
+- **Mobile Layout Now Runs Up to 1305 px**
+  - The mobile layout used to stop at 765 px, which left phones held sideways, tablets and narrow desktop windows with a sideways-scrolling page. It now covers everything up to 1305 px, the width the desktop layout needs; above that nothing changes, and the dashboard is unaffected.
+  - The width is read from `outerWidth`, because Strava forces a min-width on the viewport and `innerWidth` and CSS media queries report the wrong size.
+
+- **Update Check Read-out**
+  - The update information moved from the panel footer into an "Updates" section at the bottom of the settings panel: last check time, the latest known version and where it came from (GitHub or the bundled file).
+  - A "Check now" link skips the 24-hour cache, shows "checking…" while it runs, and reports the result in a toast — up to date, update available, or check failed rather than a stale result.
+
+- **Automatic Update Checks Toggle**
+  - New "Check for updates automatically" setting, on by default. Turned off, no background check runs and the banner is cleared; turning it back on checks straight away.
+
 ## [v2.8.1] - 22.10.2026 (Firefox & Chrome Extensions)
 
 ### v2.8.1 New Features
