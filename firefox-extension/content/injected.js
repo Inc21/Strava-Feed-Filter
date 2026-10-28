@@ -136,6 +136,7 @@ function getSettingsIconUrl() {
         hideEviso: false,
         hideRestortrain: false,
         hideKlimatApp: false,
+        hideMyBikeTraffic: false,
         hideAthleteJoinedClub: false,
         preventVideoAutoplay: true,
         customEmbedFilters: "",
@@ -254,7 +255,7 @@ function getSettingsIconUrl() {
         hideYourClubs: false, hideMyWindsock: false, hideSummitbag: false, hideRunHealth: false,
         hideWandrer: false, hideBandok: false, hideCoros: false, hideRouvy: false,
         hideZwiftRoute: false, hideJoinWorkout: false, hideCoachCat: false, hideXert: false,
-        hideCyql: false, hideEviso: false, hideRestortrain: false, hideKlimatApp: false, hideAthleteJoinedClub: false,
+        hideCyql: false, hideEviso: false, hideRestortrain: false, hideKlimatApp: false, hideMyBikeTraffic: false, hideAthleteJoinedClub: false,
         hideCommuteTag: false, hideFooter: false
     };
 
@@ -281,7 +282,7 @@ function getSettingsIconUrl() {
         hideMyWindsock: true, hideSummitbag: true, hideRunHealth: true, hideWandrer: true,
         hideBandok: true, hideCoros: true, hideRouvy: true, hideZwiftRoute: true,
         hideJoinWorkout: true, hideCoachCat: true, hideXert: true, hideCyql: true,
-        hideEviso: true, hideRestortrain: true, hideKlimatApp: true
+        hideEviso: true, hideRestortrain: true, hideKlimatApp: true, hideMyBikeTraffic: true
     };
 
     // STRICT works from an allow-list: every type that is not named here gets hidden.
@@ -678,7 +679,10 @@ function getSettingsIconUrl() {
         display: none !important;
       }
 
-      body[data-sff-header-compact="true"][data-sff-dashboard="true"] section {
+      /* Only the old header needed this push: its row sat in a header that took no room in the
+         flow. The React header carries the row as a block of its own, so the extra margin there
+         would move the sidebar sections and nothing else. */
+      body[data-sff-header-compact="true"][data-sff-dashboard="true"]:not(:has(#global-header nav)) section {
         margin-top: 49px !important;
       }
 
@@ -1709,6 +1713,13 @@ function getSettingsIconUrl() {
       .sff-secondary-nav {
         padding-left: max(16px, var(--sff-header-inset-left, 16px)) !important;
         padding-right: max(16px, var(--sff-header-inset-right, 16px)) !important;
+      }
+
+      /* The React header wraps its whole bar in a single container div. Should that header lay
+         out as a flex row, our row has to take a line of its own instead of competing with the
+         nav for width - the width: 100% above only wraps once the header may wrap. */
+      body:has(#global-header nav) #global-header {
+        flex-wrap: wrap !important;
       }
 
       /* Mobile relies on Strava's native "Name - Type" header (no injected type). */
@@ -3494,19 +3505,37 @@ function getSettingsIconUrl() {
                 secondaryNav.classList.add('sff-theme-dark');
             }
 
-            // Insert button after notifications element (on all pages)
-            const notificationsLi = document.querySelector('li#notifications');
-            if (notificationsLi && notificationsLi.parentNode) {
-                notificationsLi.parentNode.insertBefore(btnLi, notificationsLi.nextSibling);
-            } else {
-                // Fallback: try to insert into user-nav if notifications not found
-                const userNav = document.querySelector('.user-nav.nav-group');
-                if (userNav) {
-                    userNav.prepend(btnLi);
+            // Insert button next to the notification bell, in whichever header Strava serves.
+            // The header can mount a beat after us, so the button waits it out instead of dropping
+            // to the end of <body>, where it showed up at the bottom of the feed.
+            let headerAttempts = 0;
+            const placeHeaderButton = () => {
+                if (btnLi.isConnected) return;
+                // A later build already planted its own button; this one is stale.
+                if (document.querySelector('.sff-filter-nav-item')) return;
+                const headerHost = this.getHeaderNavHost();
+                if (headerHost.item && headerHost.item.parentNode) {
+                    headerHost.item.parentNode.insertBefore(btnLi, headerHost.item.nextSibling);
+                } else if (headerHost.list) {
+                    headerHost.list.prepend(btnLi);
+                } else if (headerHost.header && !headerHost.header.querySelector('nav')
+                    && headerHost.header.querySelector('.sff-secondary-nav') && headerAttempts >= 3) {
+                    // A header with no bar at all (Strava's phone layout): nothing to hang the
+                    // button on, so the row below it becomes the way into the panel. The wait
+                    // first gives a bar that is still mounting the chance to appear.
+                    document.body.setAttribute('data-sff-header-compact', 'true');
+                    return;
+                } else if (++headerAttempts < 10) {
+                    setTimeout(placeHeaderButton, 500);
+                    return;
                 } else {
                     document.body.appendChild(btnLi);
+                    return;
                 }
-            }
+                // A header that only just mounted still has to be measured for the row state.
+                if (headerAttempts) this.syncHeaderLayout();
+            };
+            placeHeaderButton();
             document.body.appendChild(panel);
 
             // Set the initial settings icon src after the panel is in the DOM
@@ -3530,6 +3559,25 @@ function getSettingsIconUrl() {
             return { btn, panel, secondaryFilterBtn, secondaryKudosBtn };
         },
 
+        // Strava rebuilt the global header as a React component: `li#notifications` and
+        // `ul.user-nav.nav-group` are gone, and the notification bell now sits in a plain list
+        // item of the right-hand nav group. Both markups are resolved here so the header buttons
+        // land next to the bell either way.
+        getHeaderNavHost() {
+            const header = document.querySelector('#global-header');
+            const legacyItem = document.querySelector('li#notifications');
+            const bell = header
+                ? header.querySelector('[data-cy="notifications-bell"], button[aria-label="Notifications"]')
+                : null;
+            const item = legacyItem || (bell ? bell.closest('li') : null);
+            const legacyList = header ? header.querySelector('ul.user-nav.nav-group') : null;
+            // `nav > ul` only: the dropdown menus inside the items are lists as well.
+            const list = legacyList
+                || (item ? item.parentElement : null)
+                || (header ? header.querySelector('nav > ul:last-of-type') : null);
+            return { header, item, list };
+        },
+
         // Strava's header has two hard limits, both measured here instead of guessed from a width:
         // the row can only hold so much, and at some point the whole nav collapses behind the
         // burger. Either way the answer is the same - our controls move as one set into their own
@@ -3537,10 +3585,26 @@ function getSettingsIconUrl() {
         syncHeaderLayout() {
             const body = document.body;
             const header = document.querySelector('#global-header');
+            // Our buttons keep their label on one line and never shrink, so they run out of room
+            // well before Strava's nav gives up at 990 px: around 1200 px the filter button's
+            // label was already wrapping inside its 32 px pill. From there the row takes over on
+            // both header builds, instead of waiting for a signal that only arrives too late.
+            const ROW_HANDOVER_WIDTH = 1200;
             // Detail pages do not always use a <nav> element for the bar, so match the class only;
             // without it the row keeps its fallback padding instead of following the header column.
             const navBar = header?.querySelector('.nav-bar');
             const burger = header?.querySelector('a.btn-mobile-menu');
+
+            // The React header has neither a .nav-bar wrapper nor a burger: the bar is
+            // `header > div > nav > ul`, and the only thing its breakpoints do to it is drop the
+            // main links. A hidden main link is therefore the collapse signal on that markup.
+            const reactNav = (!navBar && header) ? header.querySelector('nav') : null;
+            const reactLinks = reactNav
+                ? reactNav.querySelector('a#dashboard-menu, a#training-menu, a#maps-menu, a#challenges-menu')
+                : null;
+            // The header's content column: the bar on the old markup, the container div the nav
+            // is wrapped in on the React one.
+            const headerFrame = navBar || (reactNav ? reactNav.parentElement : null);
 
             const isCompact = body.getAttribute('data-sff-header-compact') === 'true';
             let compact;
@@ -3548,10 +3612,10 @@ function getSettingsIconUrl() {
             // Our row hangs below the header, so it has to follow the header's own content column.
             // Strava centres its nav in a fixed-width container, which leaves wide gutters on large
             // screens; without this the row's buttons hug the viewport edges instead of the header.
-            if (navBar) {
-                const navRect = navBar.getBoundingClientRect();
-                body.style.setProperty('--sff-header-inset-left', Math.round(navRect.left) + 'px');
-                body.style.setProperty('--sff-header-inset-right', Math.round(document.documentElement.clientWidth - navRect.right) + 'px');
+            if (headerFrame) {
+                const frameRect = headerFrame.getBoundingClientRect();
+                body.style.setProperty('--sff-header-inset-left', Math.round(frameRect.left) + 'px');
+                body.style.setProperty('--sff-header-inset-right', Math.round(document.documentElement.clientWidth - frameRect.right) + 'px');
             }
 
             // The nav is a flex-wrap container, so once our button stops fitting the whole user
@@ -3566,14 +3630,23 @@ function getSettingsIconUrl() {
             if (burger && getComputedStyle(burger).display !== 'none') {
                 // Strava collapsed the row: the burger is the only header control left.
                 compact = true;
+            } else if (reactNav) {
+                // The React header keeps its bar in one piece: the main links simply disappear
+                // below its own breakpoint, which is exactly when our row has to take over. The
+                // test is on Strava's own links, so hiding our button cannot feed back into it.
+                // That breakpoint sits well below the width our buttons need as well.
+                compact = !reactLinks || reactLinks.getClientRects().length === 0
+                    || window.innerWidth <= ROW_HANDOVER_WIDTH;
             } else if (!navBar) {
                 compact = isCompact;
             } else if (isCompact) {
                 // Return to the row only once it can hold the full-size button plus a margin, so
                 // the two states cannot flip-flop around the threshold.
-                compact = wrapped || navBar.clientWidth - navBar.scrollWidth < 100;
+                compact = wrapped || navBar.clientWidth - navBar.scrollWidth < 100
+                    || window.innerWidth <= ROW_HANDOVER_WIDTH;
             } else {
-                compact = wrapped || navBar.clientWidth - navBar.scrollWidth < 0;
+                compact = wrapped || navBar.clientWidth - navBar.scrollWidth < 0
+                    || window.innerWidth <= ROW_HANDOVER_WIDTH;
             }
 
             if (compact === isCompact) return;
@@ -4281,6 +4354,10 @@ function getSettingsIconUrl() {
                                 <label class="sff-chip ${settings.hideKlimatApp ? 'checked' : ''}">
                                     <input type="checkbox" class="sff-hideKlimatApp" ${settings.hideKlimatApp ? 'checked' : ''}>
                                     KlimatApp
+                                </label>
+                                <label class="sff-chip ${settings.hideMyBikeTraffic ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideMyBikeTraffic" ${settings.hideMyBikeTraffic ? 'checked' : ''}>
+                                    MyBikeTraffic
                                 </label>
                             </div>
                             <div class="sff-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
@@ -5455,6 +5532,7 @@ function getSettingsIconUrl() {
                         settings.hideEviso = isChecked;
                         settings.hideRestortrain = isChecked;
                         settings.hideKlimatApp = isChecked;
+                        settings.hideMyBikeTraffic = isChecked;
                         UtilsModule.saveSettings(settings);
                         
                         // Update all individual checkboxes
@@ -5480,6 +5558,7 @@ function getSettingsIconUrl() {
                         LogicModule.updateEvisoVisibility();
                         LogicModule.updateRestortrainVisibility();
                         LogicModule.updateKlimatAppVisibility();
+                        LogicModule.updateMyBikeTrafficVisibility();
                         LogicModule.updateCustomEmbedVisibility();
                     }
                     
@@ -5498,6 +5577,11 @@ function getSettingsIconUrl() {
                         settings.hideRunHealth = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateRunHealthVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideWandrer')) {
+                        settings.hideWandrer = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateWandrerVisibility();
                     }
                     if (e.target.classList.contains('sff-hideBandok')) {
                         settings.hideBandok = e.target.checked;
@@ -5553,6 +5637,11 @@ function getSettingsIconUrl() {
                         settings.hideKlimatApp = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateKlimatAppVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideMyBikeTraffic')) {
+                        settings.hideMyBikeTraffic = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateMyBikeTrafficVisibility();
                     }
                     if (e.target.classList.contains('sff-preventVideoAutoplay')) {
                         settings.preventVideoAutoplay = e.target.checked;
@@ -6467,22 +6556,24 @@ function getSettingsIconUrl() {
         updateWandrerVisibility() {
             try {
                 this.getDescriptionBlocks().forEach(descriptionWrapper => {
+                    // Wandrer writes a summary line ("3.66 new miles") above its credit line, and
+                    // only the credit names the service. The summary is part of the embed too, so
+                    // the block goes as a whole rather than the one paragraph that matches.
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => /\bwandrer\b/i.test(p.textContent?.trim() || ''));
-                    if (hasEmbed && settings.enabled && settings.hideWandrer) {
-                        paragraphs.forEach(p => {
-                            if (/\bwandrer\b/i.test(p.textContent?.trim() || '')) {
-                                p.style.display = 'none';
-                            }
-                        });
-                    } else {
-                        paragraphs.forEach(p => {
-                            if (/\bwandrer\b/i.test(p.textContent?.trim() || '')) {
-                                p.style.display = '';
-                            }
-                        });
+                    const shouldHide = hasEmbed && settings.enabled && settings.hideWandrer;
+
+                    // Class-based hide keeps Strava's own inline display:none intact, and the
+                    // per-filter marker stops another preset filter's restore pass undoing it.
+                    if (shouldHide) {
+                        descriptionWrapper.classList.add('sff-hide-preset');
+                        descriptionWrapper.dataset.sffHiddenBy = 'sff-wandrer';
+                    } else if (descriptionWrapper.dataset.sffHiddenBy === 'sff-wandrer') {
+                        descriptionWrapper.classList.remove('sff-hide-preset');
+                        delete descriptionWrapper.dataset.sffHiddenBy;
                     }
-                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideWandrer);
+
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, shouldHide);
                 });
             } catch (e) { /* updateWandrerVisibility error */ }
         },
@@ -6810,6 +6901,29 @@ function getSettingsIconUrl() {
                     if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideKlimatApp);
                 });
             } catch (e) { /* updateKlimatAppVisibility error */ }
+        },
+
+        updateMyBikeTrafficVisibility() {
+            try {
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    const hasEmbed = Array.from(paragraphs).some(p => /mybiketraffic/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideMyBikeTraffic) {
+                        paragraphs.forEach(p => {
+                            if (/mybiketraffic/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
+                            }
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/mybiketraffic/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
+                    }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideMyBikeTraffic);
+                });
+            } catch (e) { /* updateMyBikeTrafficVisibility error */ }
         },
 
         updateCustomEmbedVisibility() {
@@ -7469,7 +7583,8 @@ function getSettingsIconUrl() {
                     return;
                 }
 
-                const navList = document.querySelector('.user-nav.nav-group');
+                // The same header anchors as the filter button (see UIModule.getHeaderNavHost)
+                const navList = UIModule.getHeaderNavHost().list;
 
                 if (navList) {
                     const newListItem = document.createElement('li');
@@ -7660,6 +7775,7 @@ function getSettingsIconUrl() {
             this.updateEvisoVisibility();
             this.updateRestortrainVisibility();
             this.updateKlimatAppVisibility();
+            this.updateMyBikeTrafficVisibility();
             this.updateCustomEmbedVisibility();
             this.collapseEmptyDetailDescription();
         },
@@ -7787,7 +7903,9 @@ function getSettingsIconUrl() {
                 seeMoreBtn.dataset.expanded = 'false';
 
                 // Insert button after activity title
-                const titleContainer = activityNameLink.closest('.oJVfx, .UDqjM');
+                // The React entry keeps the title in an h3 with no class of its own, so the
+                // link's parent is the container on that markup.
+                const titleContainer = activityNameLink.closest('.oJVfx, .UDqjM') || activityNameLink.parentElement;
                 if (titleContainer) {
                     titleContainer.style.display = 'flex';
                     titleContainer.style.alignItems = 'center';

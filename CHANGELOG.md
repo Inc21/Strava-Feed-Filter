@@ -1,8 +1,18 @@
 # Changelog
 
-## [v2.8.2] - 24.10.2026 (Firefox & Chrome Extensions)
+## [v2.8.3] - 28.10.2026 (Firefox & Chrome Extensions)
 
-Work in progress — entries are added as we go.
+### v2.8.3 Bug Fixes
+
+- **Header Row and Buttons Broke With Strava's New Header**
+  - Strava rebuilt the global header as a React component: `li#notifications`, `ul.user-nav.nav-group`, `nav.nav-bar` and the hamburger are gone. The filter button lost its anchor and fell back to the end of `<body>`, so it showed up underneath the feed, the header kudos button never mounted, and the row stayed hidden on the dashboard because the old collapse signals were never read.
+  - The filter and kudos buttons now anchor to the notification item of the new header, and the row takes over when Strava drops its own main links - the only width signal its header still gives.
+  - At 1200 px and below the row takes over on both header builds. Our buttons keep their label on one line and never shrink, so they ran out of room long before Strava's nav collapses - around that width the filter button's label was already wrapping inside its pill. The legacy header only folds behind a burger at 990 px and the React one keeps every link even lower, so neither signal arrives in time.
+
+- **"Show more stats" Button Missing From Feed Entries**
+  - The button was attached through two legacy title classes that the React entry no longer carries, so no container was found and nothing was inserted. The title link's own parent is used when those classes are absent.
+
+## [v2.8.2] - 26.10.2026 (Firefox & Chrome Extensions)
 
 ### v2.8.2 New Features
 
@@ -17,6 +27,24 @@ Work in progress — entries are added as we go.
 - **Always Allow Me**
   - New "Always allow me" checkbox under Allowed Athletes: in CUSTOM it adds your name to the list in one click, and unticking removes it again.
   - It is derived from the list rather than stored separately, so the box stays the single place where the list lives.
+
+- **Mobile Layout Now Covers Profiles, Settings and Segment Pages**
+  - The opt-in mobile layout reaches beyond activity details: the athlete profile (photo collage, Last 4 Weeks, tab strip, trophies), the legacy settings pages (My Gear, My Account, components) and segment pages (leaderboard, PR comparison, Local Legend, charts) now reflow into a single column.
+  - Each page type is detected from the path and marked on `<body>`, so the rules follow SPA navigation between the profile's tabs instead of only applying on a full load.
+  - Profile trophies are capped at three rows with a "Show all N trophies" button, and on phones the activity-log graph is widened into a pannable strip — a tablet keeps the native graph.
+
+- **Header Buttons Move as One Set Instead of Shrinking**
+  - When Strava's header runs out of room, or Strava collapses its nav behind the hamburger, the filter and kudos buttons move together into our own row below the header at full size, aligned to the header's content column.
+  - The switch is measured from the header's layout (wrapped user nav, remaining width, burger visibility) rather than a fixed breakpoint, with a margin on the way back so the two states cannot flip-flop.
+  - Replaces the old per-breakpoint positioning, which set the button's left offset in JavaScript between 760 px and 985 px.
+
+- **KlimatApp and MyBikeTraffic Embed Filters**
+  - Two new chips in Third-Party Service Embeds: **KlimatApp** (the "… — by KlimatApp" weather line) and **MyBikeTraffic** (the vehicle count and mybiketraffic.com ride link).
+  - Both are included in "Hide All Embeds" and in the STRICT preset.
+
+- **Embed Filters on Activity Detail Pages**
+  - The preset embed filters used to look only inside feed entries, so an activity page's description — rendered outside the feed — was never filtered. Every preset now scans it too, with two follow-up passes for the description that mounts after the page itself.
+  - A description left with nothing visible is collapsed together with its "…" expander, instead of leaving an empty box behind.
 
 ### v2.8.2 Bug Fixes
 
@@ -43,6 +71,41 @@ Work in progress — entries are added as we go.
   - The mobile layout writes `min-width: 0`, `width: 100%` and `overflow-x: hidden` onto `<html>` and `<body>`, but only the marked elements were restored when the window widened again — so the page kept `overflow-x: hidden` above the breakpoint and the activity layout was cut off at the right edge.
   - Those inline properties are now cleared with the other mobile overrides.
 
+- **Wandrer Snippet Left Half Visible**
+  - Wandrer writes its summary ("3.66 new miles") on its own line above the "-- From Wandrer" credit, and only the credit line matched, so the summary stayed on screen.
+  - The description block is now hidden as a whole, the same way Restortrain already was.
+
+- **Wandrer Toggle Neither Saved nor Hid**
+  - The chip had no change handler: ticking it did not run the visibility pass and did not store the setting, so it came back unticked after the panel was closed.
+
+- **Duplicate Filter Button After the Panel Rebuilt Itself**
+  - The header list item holding our button was not removed with the other UI elements, so a rebuild could leave a second one stacked next to it.
+
+- **Filter Panel Opening in the Wrong Place**
+  - The panel anchored itself to the first button in the set even when the layout had hidden it; it now picks the first visible one.
+
+- **Kudos Button Appearing Outside the Feed**
+  - The "give kudos" button clicks every visible feed entry, so every filter pass put it back on pages with no feed. It is now kept to the dashboard.
+
+- **Pan Bar Could Be Dragged Past the Last Item**
+  - The indicator was moved with a transform, which counts towards the scroll width, so a strip could be dragged past its last item into blank space. It is positioned by offset and width instead, survives a chart re-render, and re-fits itself when the strip changes size.
+
+- **Segment Pages Clipped on Phones**
+  - The leaderboard filter, the speed column, the PR comparison blocks and the Local Legend button overflowed a phone screen, and the leaderboard filter's open list was clipped by the table's scroll box.
+  - The table is fitted to the column, the filter sits in the flow above it, and the PR blocks keep their two halves.
+
+- **Stray Scrollbar Row Under Gear and Component Tables (Firefox)**
+  - The component tables were horizontal scrollers, which Firefox renders as a full-height scrollbar band under the table header. They now fit the width and wrap instead.
+
+- **Group Activity Names Cut Off in the Feed (Mobile)**
+  - Group headers name several athletes on one line and were clipped at the card edge; they now wrap like single-activity names.
+
+- **Header Popovers Painted Over (Mobile)**
+  - The notification list and avatar menu open directly under the header bar, where our own row covered their top edge.
+
+- **Dark Theme Skipped the Secondary Row**
+  - The row's dark styling was only applied when the panel was rebuilt; it now follows the theme setting immediately.
+
 ### v2.8.2 Improvements
 
 - **Back to Filters Moved to the End of Settings**
@@ -58,6 +121,13 @@ Work in progress — entries are added as we go.
 
 - **Automatic Update Checks Toggle**
   - New "Check for updates automatically" setting, on by default. Turned off, no background check runs and the banner is cleared; turning it back on checks straight away.
+
+- **Wording and Tooltips**
+  - "Mobile responsive activity pages" is now "Mobile responsive layout", with a tooltip that lists what actually reflows.
+  - The notification bell and "Only on small screens" wording no longer quote fixed pixel widths.
+
+- **Credits Separator**
+  - The two footer links are separated by a divider that keeps its size and accent colour in a narrow panel.
 
 ## [v2.8.1] - 22.10.2026 (Firefox & Chrome Extensions)
 

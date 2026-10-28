@@ -44,6 +44,10 @@ function getSettingsIconUrl() {
 
     // Debug mode removed: keep console.log default behavior
 
+    // The feed looks up entry rows in thirty-odd places. Strava's current markup is a React
+    // entry carrying a test id, older markup uses classes, and every lookup accepts all three.
+    const FEED_ENTRY_SELECTOR = '.activity, .feed-entry, [data-testid="web-feed-entry"]';
+
     // Storage shim: uses browser.storage.local if available (content script),
     // falls back to localStorage when not available.
     const ext = (typeof browser !== 'undefined') ? browser : (typeof chrome !== 'undefined' ? chrome : null);
@@ -131,6 +135,8 @@ function getSettingsIconUrl() {
         hideCyql: false,
         hideEviso: false,
         hideRestortrain: false,
+        hideKlimatApp: false,
+        hideMyBikeTraffic: false,
         hideAthleteJoinedClub: false,
         preventVideoAutoplay: true,
         customEmbedFilters: "",
@@ -249,7 +255,7 @@ function getSettingsIconUrl() {
         hideYourClubs: false, hideMyWindsock: false, hideSummitbag: false, hideRunHealth: false,
         hideWandrer: false, hideBandok: false, hideCoros: false, hideRouvy: false,
         hideZwiftRoute: false, hideJoinWorkout: false, hideCoachCat: false, hideXert: false,
-        hideCyql: false, hideEviso: false, hideRestortrain: false, hideAthleteJoinedClub: false,
+        hideCyql: false, hideEviso: false, hideRestortrain: false, hideKlimatApp: false, hideMyBikeTraffic: false, hideAthleteJoinedClub: false,
         hideCommuteTag: false, hideFooter: false
     };
 
@@ -276,7 +282,7 @@ function getSettingsIconUrl() {
         hideMyWindsock: true, hideSummitbag: true, hideRunHealth: true, hideWandrer: true,
         hideBandok: true, hideCoros: true, hideRouvy: true, hideZwiftRoute: true,
         hideJoinWorkout: true, hideCoachCat: true, hideXert: true, hideCyql: true,
-        hideEviso: true, hideRestortrain: true
+        hideEviso: true, hideRestortrain: true, hideKlimatApp: true, hideMyBikeTraffic: true
     };
 
     // STRICT works from an allow-list: every type that is not named here gets hidden.
@@ -656,35 +662,34 @@ function getSettingsIconUrl() {
         margin-right: 8px !important;
       }
 
-      /* On smaller screens, adjust positioning */
-      @media (max-width: 1460px) {
-        .sff-clean-btn {
-          position: fixed !important;
-          top: 56px !important;
-          right: 10px !important;
-        }
+      /* The header button never leaves Strava's header flow and never shrinks: while the row can
+         hold it, it sits in the row at its normal size. Once the header runs out of room (or
+         Strava collapses its nav behind the burger), our whole control set moves to the row below,
+         together, at full size. The state is measured in syncHeaderLayout(), not guessed. */
+      body[data-sff-header-compact="true"] .sff-filter-nav-item {
+        display: none !important;
       }
 
-      /* Switch button to left and up; move panel to left as well */
-      @media (max-width: 985px) {
-        .sff-clean-btn {
-          top: 10px !important;
-          right: auto !important;
-          left: 280px !important; /* shift by roughly button width to clear logo */
-        }
+      body[data-sff-header-compact="true"] .sff-secondary-nav {
+        display: flex !important;
+      }
 
+      /* The row carries its own kudos button, so the header one steps aside with the filter */
+      body[data-sff-header-compact="true"] #gj-kudos-li {
+        display: none !important;
+      }
+
+      /* Only the old header needed this push: its row sat in a header that took no room in the
+         flow. The React header carries the row as a block of its own, so the extra margin there
+         would move the sidebar sections and nothing else. */
+      body[data-sff-header-compact="true"][data-sff-dashboard="true"]:not(:has(#global-header nav)) section {
+        margin-top: 49px !important;
+      }
+
+      @media (max-width: 985px) {
         .sff-clean-panel {
           right: auto !important;
           left: 10px !important;
-        }
-      }
-
-      /* Even smaller screens: keep at top, but push further right to avoid burger */
-      @media (max-width: 760px) {
-        .sff-clean-btn {
-          top: 10px !important; /* remain at top */
-          left: 340px !important; /* push further right to clear burger */
-          right: auto !important;
         }
       }
 
@@ -1390,20 +1395,17 @@ function getSettingsIconUrl() {
 
       /* Dark theme for header kudos + filter buttons injected into Strava nav */
       body[data-sff-theme="dark"] .sff-header-kudos-btn,
-      body[data-sff-theme="dark"] .sff-clean-btn,
-      body[data-sff-theme="dark"] .sff-secondary-filter-btn {
+      body[data-sff-theme="dark"] .sff-clean-btn {
         background: #111111 !important;
         color: #fc5200 !important;
         border: 2px solid #fc5200 !important;
       }
-      body[data-sff-theme="dark"] .sff-clean-btn .sff-btn-sub,
-      body[data-sff-theme="dark"] .sff-secondary-filter-btn .sff-btn-sub {
+      body[data-sff-theme="dark"] .sff-clean-btn .sff-btn-sub {
         color: #fc5200 !important;
       }
 
       body[data-sff-theme="dark"] .sff-header-kudos-btn:hover,
-      body[data-sff-theme="dark"] .sff-clean-btn:hover,
-      body[data-sff-theme="dark"] .sff-secondary-filter-btn:hover {
+      body[data-sff-theme="dark"] .sff-clean-btn:hover {
         background: #333333 !important;
         color: #fc5200 !important;
       }
@@ -1549,7 +1551,7 @@ function getSettingsIconUrl() {
         flex-wrap: wrap !important;
         align-items: center !important;
         justify-content: center !important;
-        gap: 4px 18px !important;
+        gap: 4px 6px !important;
         margin: 0 !important;
         line-height: 1.3 !important;
       }
@@ -1557,6 +1559,14 @@ function getSettingsIconUrl() {
       .sff-credits p:first-child {
         font-weight: 600 !important;
         color: #333 !important;
+      }
+
+      /* The separator is drawn at text size and in the accent colour, so it still reads as a
+         divider rather than a stray mark when the panel is narrow. */
+      .sff-credits p span:nth-child(2) {
+        font-size: 1em !important;
+        line-height: 1 !important;
+        color: #fc5200 !important;
       }
 
       .sff-credits a {
@@ -1695,6 +1705,21 @@ function getSettingsIconUrl() {
       /* ...and keep the page clear of it, the same 49px the narrow layouts already use. */
       body:not([data-sff-dashboard="true"]) .page.container {
         margin-top: 49px !important;
+      }
+
+      /* Our row sits under the header, so it follows the header's content column instead of the
+         viewport edges: Strava centres its nav in a fixed-width container, and on large screens
+         that leaves wide gutters. The insets are measured in syncHeaderLayout(). */
+      .sff-secondary-nav {
+        padding-left: max(16px, var(--sff-header-inset-left, 16px)) !important;
+        padding-right: max(16px, var(--sff-header-inset-right, 16px)) !important;
+      }
+
+      /* The React header wraps its whole bar in a single container div. Should that header lay
+         out as a flex row, our row has to take a line of its own instead of competing with the
+         nav for width - the width: 100% above only wraps once the header may wrap. */
+      body:has(#global-header nav) #global-header {
+        flex-wrap: wrap !important;
       }
 
       /* Mobile relies on Strava's native "Name - Type" header (no injected type). */
@@ -2022,36 +2047,23 @@ function getSettingsIconUrl() {
       body[data-sff-theme="dark"] .sff-hide-stats-btn:hover {
         background: #333333 !important;
       }
-
-      /* Show secondary nav on smaller screens ONLY on dashboard */
-      @media (max-width: 1479px) {
-        body[data-sff-dashboard="true"] .sff-secondary-nav {
-          display: flex !important;
-        }
-
-        /* Hide main filter button on smaller screens ONLY on dashboard */
-        body[data-sff-dashboard="true"] .sff-clean-btn {
-          display: none !important;
-        }
-
-        /* Hide main header kudos button on smaller screens ONLY on dashboard */
-        body[data-sff-dashboard="true"] #gj-kudos-li {
-          display: none !important;
-        }
-
-        /* Show secondary nav on ALL pages at small screens */
-        .sff-secondary-nav {
-          display: flex !important;
-        }
-
-        /* Push content down on dashboard (feed page) */
-        body[data-sff-dashboard="true"] section {
-          margin-top: 49px !important;
-        }
-
-        /* The non-dashboard content offset is not width-dependent, so it lives outside this
-           block: the nav row is shown at every width on those pages. */
+      
+      .sff-secondary-nav.sff-theme-dark .sff-secondary-filter-btn,
+      .sff-secondary-nav.sff-theme-dark .sff-secondary-kudos-btn {
+        background: #111111 !important;
+        color: #fc5200 !important;
+        border: 2px solid #fc5200 !important;
+        margin: 0px !important;
       }
+
+      .sff-secondary-nav.sff-theme-dark .sff-secondary-filter-btn:hover,
+      .sff-secondary-nav.sff-theme-dark .sff-secondary-kudos-btn:hover {
+        background: #333333 !important;
+        color: #fc5200 !important;
+      }
+
+      /* The header/row switch above replaces the old 1479px media query: when the row cannot hold
+         our controls, the row below shows them; otherwise the header carries them. */
 
 
       /* Secondary nav filter button */
@@ -2107,20 +2119,6 @@ function getSettingsIconUrl() {
 
       .sff-secondary-kudos-btn:hover {
         background: #e04a00 !important;
-      }
-
-      /* Dark theme overrides for secondary nav buttons - must come after base styles */
-      body[data-sff-theme="dark"] .sff-secondary-filter-btn,
-      body[data-sff-theme="dark"] .sff-secondary-kudos-btn {
-        background: #111111 !important;
-        color: #fc5200 !important;
-        border: 2px solid #fc5200 !important;
-      }
-
-      body[data-sff-theme="dark"] .sff-secondary-filter-btn:hover,
-      body[data-sff-theme="dark"] .sff-secondary-kudos-btn:hover {
-        background: #333333 !important;
-        color: #fc5200 !important;
       }
 
       /* Settings View Styles */
@@ -2619,7 +2617,8 @@ function getSettingsIconUrl() {
       .sff-hide-preset {
         display: none !important;
       }
-        `);
+
+            `);
     }
 
     // Initialize CSS Module
@@ -2693,6 +2692,36 @@ function getSettingsIconUrl() {
 
         isOnActivityPage() {
             return /^\/activities\/\d+/.test(window.location.pathname);
+        },
+
+        // The profile overview and its tabs (trophy case, follows, posts) all live under the
+        // same path, and they all share the fixed-width spans layout.
+        isOnProfilePage() {
+            return /^\/athletes\/(\d+|me)(\/|$)/.test(window.location.pathname);
+        },
+
+        // The legacy settings area (My Gear, My Account, ...) is laid out like a profile page:
+        // a sidebar column plus a wide main column on the same fixed grid. Gear and component
+        // pages are reached from it and carry the same sidebar.
+        isOnSettingsPage() {
+            return /^\/(settings|bikes|components|account)(\/|$)/.test(window.location.pathname);
+        },
+
+        // Segment and effort pages: /segments/:id (leaderboard, local legend, compare),
+        // /segment_efforts/:id, and the segment opened from inside an activity,
+        // /activities/:id/segments/:id. They share the effort-details + leaderboard spans
+        // grid. The last one also matches isOnActivityPage(), but it is a whole page with
+        // that grid rather than an activity, so it needs the segment rules.
+        isOnSegmentPage() {
+            return /^\/(segments|segment_efforts)\//.test(window.location.pathname)
+                || /^\/activities\/[^/]+\/segments\//.test(window.location.pathname);
+        },
+
+        // Pages that take the mobile sheet: everything Strava still renders on the fixed-width
+        // spans grid. The rest keep Strava's own layout.
+        wantsMobileSheet() {
+            return this.isOnActivityPage() || this.isOnProfilePage()
+                || this.isOnSettingsPage() || this.isOnSegmentPage();
         },
 
         // "Show more stats" is one setting with three widths of meaning, used by both the feed
@@ -3170,13 +3199,13 @@ function getSettingsIconUrl() {
             settings.minPace = UtilsModule.parsePaceInput(minPaceValue);
             settings.maxPace = UtilsModule.parsePaceInput(maxPaceValue);
             settings.preventVideoAutoplay = panel.querySelector('.sff-preventVideoAutoplay') ? panel.querySelector('.sff-preventVideoAutoplay').checked : settings.preventVideoAutoplay;
-            settings.hideXert = panel.querySelector('.sff-hideXert').checked;
-            settings.hideCyql = panel.querySelector('.sff-hideCyql').checked;
-            settings.hideEviso = panel.querySelector('.sff-hideEviso').checked;
-            settings.hideRestortrain = panel.querySelector('.sff-hideRestortrain').checked;
-            settings.hideAthleteJoinedClub = panel.querySelector('.sff-hideAthleteJoinedClub') ? panel.querySelector('.sff-hideAthleteJoinedClub').checked : settings.hideAthleteJoinedClub;
-            settings.hideFooter = panel.querySelector('.sff-hideFooter').checked;
-            settings.showKudosButton = panel.querySelector('.sff-showKudosButton').checked;
+            settings.unitSystem = panel.querySelector('.sff-unit-btn.active').dataset.unit;
+            settings.hideNoMap = panel.querySelector('.sff-hideNoMap').checked;
+            settings.hideClubPosts = panel.querySelector('.sff-hideClubPosts').checked;
+            settings.hideChallenges = panel.querySelector('.sff-hideChallenges').checked;
+            settings.hideJoinedChallenges = panel.querySelector('.sff-hideJoinedChallenges') ? panel.querySelector('.sff-hideJoinedChallenges').checked : settings.hideJoinedChallenges;
+            settings.hideSuggestedFriends = panel.querySelector('.sff-hideSuggestedFriends').checked;
+            settings.hideYourClubs = panel.querySelector('.sff-hideYourClubs').checked;
             settings.hideMyWindsock = panel.querySelector('.sff-hideMyWindsock').checked;
             settings.hideSummitbag = panel.querySelector('.sff-hideSummitbag').checked;
             settings.hideRunHealth = panel.querySelector('.sff-hideRunHealth').checked;
@@ -3210,15 +3239,14 @@ function getSettingsIconUrl() {
 
             if (settings.theme === 'dark') {
                 panel.classList.add('sff-theme-dark');
-                // Apply dark theme to secondary nav for proper button and bell styling
-                const secondaryNav = document.querySelector('.sff-secondary-nav');
-                if (secondaryNav) {
-                    secondaryNav.classList.add('sff-theme-dark');
-                }
             } else {
                 panel.classList.remove('sff-theme-dark');
-                const secondaryNav = document.querySelector('.sff-secondary-nav');
-                if (secondaryNav) {
+            }
+            const secondaryNav = document.querySelector('.sff-secondary-nav');
+            if (secondaryNav) {
+                if (settings.theme === 'dark') {
+                    secondaryNav.classList.add('sff-theme-dark');
+                } else {
                     secondaryNav.classList.remove('sff-theme-dark');
                 }
             }
@@ -3258,7 +3286,11 @@ function getSettingsIconUrl() {
             // Clean Filter: Creating elements
 
             // Remove existing
-            document.querySelectorAll('.sff-clean-btn, .sff-clean-panel, .sff-secondary-nav').forEach(el => el.remove());
+            document.querySelectorAll('.sff-clean-btn, .sff-clean-panel, .sff-secondary-nav, .sff-filter-nav-item').forEach(el => el.remove());
+
+            // The header row state is decided per page below; page switches start from the
+            // in-header layout so a stale compact state cannot leak onto another page.
+            document.body.removeAttribute('data-sff-header-compact');
 
             // Only create elements on dashboard
             const isDashboardPage = UtilsModule.isOnDashboard();
@@ -3326,6 +3358,11 @@ function getSettingsIconUrl() {
                 if (settings.theme === 'dark') {
                     miniNav.classList.add('sff-theme-dark');
                 }
+
+                // This row is the only way into the panel on these pages, so its visibility is
+                // pinned inline: an inline !important outranks every stylesheet rule, which the
+                // plain class rule below could not be trusted to do at wider widths.
+                miniNav.style.setProperty('display', 'flex', 'important');
 
                 // Append inside Strava's global header so it inherits scroll/fixed behavior
                 const globalHeader = document.querySelector('#global-header');
@@ -3468,19 +3505,37 @@ function getSettingsIconUrl() {
                 secondaryNav.classList.add('sff-theme-dark');
             }
 
-            // Insert button after notifications element (on all pages)
-            const notificationsLi = document.querySelector('li#notifications');
-            if (notificationsLi && notificationsLi.parentNode) {
-                notificationsLi.parentNode.insertBefore(btnLi, notificationsLi.nextSibling);
-            } else {
-                // Fallback: try to insert into user-nav if notifications not found
-                const userNav = document.querySelector('.user-nav.nav-group');
-                if (userNav) {
-                    userNav.prepend(btnLi);
+            // Insert button next to the notification bell, in whichever header Strava serves.
+            // The header can mount a beat after us, so the button waits it out instead of dropping
+            // to the end of <body>, where it showed up at the bottom of the feed.
+            let headerAttempts = 0;
+            const placeHeaderButton = () => {
+                if (btnLi.isConnected) return;
+                // A later build already planted its own button; this one is stale.
+                if (document.querySelector('.sff-filter-nav-item')) return;
+                const headerHost = this.getHeaderNavHost();
+                if (headerHost.item && headerHost.item.parentNode) {
+                    headerHost.item.parentNode.insertBefore(btnLi, headerHost.item.nextSibling);
+                } else if (headerHost.list) {
+                    headerHost.list.prepend(btnLi);
+                } else if (headerHost.header && !headerHost.header.querySelector('nav')
+                    && headerHost.header.querySelector('.sff-secondary-nav') && headerAttempts >= 3) {
+                    // A header with no bar at all (Strava's phone layout): nothing to hang the
+                    // button on, so the row below it becomes the way into the panel. The wait
+                    // first gives a bar that is still mounting the chance to appear.
+                    document.body.setAttribute('data-sff-header-compact', 'true');
+                    return;
+                } else if (++headerAttempts < 10) {
+                    setTimeout(placeHeaderButton, 500);
+                    return;
                 } else {
                     document.body.appendChild(btnLi);
+                    return;
                 }
-            }
+                // A header that only just mounted still has to be measured for the row state.
+                if (headerAttempts) this.syncHeaderLayout();
+            };
+            placeHeaderButton();
             document.body.appendChild(panel);
 
             // Set the initial settings icon src after the panel is in the DOM
@@ -3497,7 +3552,109 @@ function getSettingsIconUrl() {
 
             this.setupEvents(btn, panel, secondaryFilterBtn, secondaryKudosBtn);
             UpdateModule.init(panel);
+
+            // Pick the header layout right away, then again once the header is laid out.
+            this.syncHeaderLayout();
+            requestAnimationFrame(() => this.syncHeaderLayout());
             return { btn, panel, secondaryFilterBtn, secondaryKudosBtn };
+        },
+
+        // Strava rebuilt the global header as a React component: `li#notifications` and
+        // `ul.user-nav.nav-group` are gone, and the notification bell now sits in a plain list
+        // item of the right-hand nav group. Both markups are resolved here so the header buttons
+        // land next to the bell either way.
+        getHeaderNavHost() {
+            const header = document.querySelector('#global-header');
+            const legacyItem = document.querySelector('li#notifications');
+            const bell = header
+                ? header.querySelector('[data-cy="notifications-bell"], button[aria-label="Notifications"]')
+                : null;
+            const item = legacyItem || (bell ? bell.closest('li') : null);
+            const legacyList = header ? header.querySelector('ul.user-nav.nav-group') : null;
+            // `nav > ul` only: the dropdown menus inside the items are lists as well.
+            const list = legacyList
+                || (item ? item.parentElement : null)
+                || (header ? header.querySelector('nav > ul:last-of-type') : null);
+            return { header, item, list };
+        },
+
+        // Strava's header has two hard limits, both measured here instead of guessed from a width:
+        // the row can only hold so much, and at some point the whole nav collapses behind the
+        // burger. Either way the answer is the same - our controls move as one set into their own
+        // row, at full size, rather than shrinking to an icon in the header.
+        syncHeaderLayout() {
+            const body = document.body;
+            const header = document.querySelector('#global-header');
+            // Our buttons keep their label on one line and never shrink, so they run out of room
+            // well before Strava's nav gives up at 990 px: around 1200 px the filter button's
+            // label was already wrapping inside its 32 px pill. From there the row takes over on
+            // both header builds, instead of waiting for a signal that only arrives too late.
+            const ROW_HANDOVER_WIDTH = 1200;
+            // Detail pages do not always use a <nav> element for the bar, so match the class only;
+            // without it the row keeps its fallback padding instead of following the header column.
+            const navBar = header?.querySelector('.nav-bar');
+            const burger = header?.querySelector('a.btn-mobile-menu');
+
+            // The React header has neither a .nav-bar wrapper nor a burger: the bar is
+            // `header > div > nav > ul`, and the only thing its breakpoints do to it is drop the
+            // main links. A hidden main link is therefore the collapse signal on that markup.
+            const reactNav = (!navBar && header) ? header.querySelector('nav') : null;
+            const reactLinks = reactNav
+                ? reactNav.querySelector('a#dashboard-menu, a#training-menu, a#maps-menu, a#challenges-menu')
+                : null;
+            // The header's content column: the bar on the old markup, the container div the nav
+            // is wrapped in on the React one.
+            const headerFrame = navBar || (reactNav ? reactNav.parentElement : null);
+
+            const isCompact = body.getAttribute('data-sff-header-compact') === 'true';
+            let compact;
+
+            // Our row hangs below the header, so it has to follow the header's own content column.
+            // Strava centres its nav in a fixed-width container, which leaves wide gutters on large
+            // screens; without this the row's buttons hug the viewport edges instead of the header.
+            if (headerFrame) {
+                const frameRect = headerFrame.getBoundingClientRect();
+                body.style.setProperty('--sff-header-inset-left', Math.round(frameRect.left) + 'px');
+                body.style.setProperty('--sff-header-inset-right', Math.round(document.documentElement.clientWidth - frameRect.right) + 'px');
+            }
+
+            // The nav is a flex-wrap container, so once our button stops fitting the whole user
+            // group drops onto a second line instead of overflowing - scrollWidth stays equal and
+            // the width test below never fires. A group sitting lower than the main links is that
+            // wrap, and it is the state that has to hand over to our own row.
+            const navLinks = header?.querySelector('ul.global-nav.nav-group');
+            const userNav = header?.querySelector('ul.user-nav.nav-group');
+            const wrapped = !!(navLinks && userNav &&
+                userNav.getBoundingClientRect().top > navLinks.getBoundingClientRect().top + 4);
+
+            if (burger && getComputedStyle(burger).display !== 'none') {
+                // Strava collapsed the row: the burger is the only header control left.
+                compact = true;
+            } else if (reactNav) {
+                // The React header keeps its bar in one piece: the main links simply disappear
+                // below its own breakpoint, which is exactly when our row has to take over. The
+                // test is on Strava's own links, so hiding our button cannot feed back into it.
+                // That breakpoint sits well below the width our buttons need as well.
+                compact = !reactLinks || reactLinks.getClientRects().length === 0
+                    || window.innerWidth <= ROW_HANDOVER_WIDTH;
+            } else if (!navBar) {
+                compact = isCompact;
+            } else if (isCompact) {
+                // Return to the row only once it can hold the full-size button plus a margin, so
+                // the two states cannot flip-flop around the threshold.
+                compact = wrapped || navBar.clientWidth - navBar.scrollWidth < 100
+                    || window.innerWidth <= ROW_HANDOVER_WIDTH;
+            } else {
+                compact = wrapped || navBar.clientWidth - navBar.scrollWidth < 0
+                    || window.innerWidth <= ROW_HANDOVER_WIDTH;
+            }
+
+            if (compact === isCompact) return;
+            if (compact) {
+                body.setAttribute('data-sff-header-compact', 'true');
+            } else {
+                body.removeAttribute('data-sff-header-compact');
+            }
         },
 
         applyCompactMode() {
@@ -4194,6 +4351,14 @@ function getSettingsIconUrl() {
                                     <input type="checkbox" class="sff-hideRestortrain" ${settings.hideRestortrain ? 'checked' : ''}>
                                     Restortrain
                                 </label>
+                                <label class="sff-chip ${settings.hideKlimatApp ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideKlimatApp" ${settings.hideKlimatApp ? 'checked' : ''}>
+                                    KlimatApp
+                                </label>
+                                <label class="sff-chip ${settings.hideMyBikeTraffic ? 'checked' : ''}">
+                                    <input type="checkbox" class="sff-hideMyBikeTraffic" ${settings.hideMyBikeTraffic ? 'checked' : ''}>
+                                    MyBikeTraffic
+                                </label>
                             </div>
                             <div class="sff-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
                                 <label class="sff-label">Custom Embeds (comma-separated):</label>
@@ -4277,6 +4442,7 @@ function getSettingsIconUrl() {
                         <div class="sff-credits">
                             <p>
                                 <span>Developed By: <a href="https://github.com/Inc21" target="_blank">Inc21</a></span>
+                                <span>|</span>
                                 <span><a href="https://www.strava.com/athletes/2362084" target="_blank">Follow me on Strava</a></span>
                             </p>
                         </div>
@@ -4330,7 +4496,7 @@ function getSettingsIconUrl() {
                                 <input type="checkbox" class="sff-showNotifications" ${settings.showNotifications ? 'checked' : ''}>
                                 Show notifications bell (mobile)
                             </label>
-                            <span class="sff-info-icon" data-info="Displays a notification bell icon on mobile screens (≤990px width) so you can easily check your Strava notifications without navigating away from the feed.">?</span>
+                            <span class="sff-info-icon" data-info="Displays a notification bell icon in the mobile header so you can check your Strava notifications without leaving the feed.">?</span>
                         </div>
                     </div>
                     
@@ -4374,7 +4540,7 @@ function getSettingsIconUrl() {
                         </div>
                         <select class="sff-seeMoreMode" style="margin-left: 22px; padding: 4px 8px; font-size: 13px;">
                             <option value="always" ${settings.seeMoreButtonMode === 'always' ? 'selected' : ''}>Always show</option>
-                            <option value="smallOnly" ${settings.seeMoreButtonMode === 'smallOnly' ? 'selected' : ''}>Only on small screens (≤ 990px)</option>
+                            <option value="smallOnly" ${settings.seeMoreButtonMode === 'smallOnly' ? 'selected' : ''}>Only on small screens</option>
                             <option value="never" ${settings.seeMoreButtonMode === 'never' ? 'selected' : ''}>Never show</option>
                         </select>
                     </div>
@@ -4393,9 +4559,9 @@ function getSettingsIconUrl() {
                         <div class="sff-label-with-info">
                             <label class="sff-chip ${settings.mobileResponsive ? 'checked' : ''}">
                                 <input type="checkbox" class="sff-mobileResponsive" ${settings.mobileResponsive ? 'checked' : ''}>
-                                Mobile responsive activity pages
+                                Mobile responsive layout
                             </label>
-                            <span class="sff-info-icon" data-info="Makes activity detail pages mobile-friendly by converting the desktop grid layout into a single-column stack on small screens (≤768px). Also remembers your scroll position on the dashboard so you return to the same spot after viewing an activity.">?</span>
+                            <span class="sff-info-icon" data-info="Converts Strava's desktop layout into a single-column mobile layout on small screens - activity details, stats grids, tables and the header. Also remembers your dashboard scroll position so you return to the same spot after viewing an activity.">?</span>
                         </div>
                     </div>
 
@@ -4674,15 +4840,15 @@ function getSettingsIconUrl() {
 
                         if (settings.theme === 'dark') {
                             panel.classList.add('sff-theme-dark');
-                            // Apply dark theme to secondary nav for proper button and bell styling
-                            const secondaryNav = document.querySelector('.sff-secondary-nav');
-                            if (secondaryNav) {
-                                secondaryNav.classList.add('sff-theme-dark');
-                            }
                         } else {
                             panel.classList.remove('sff-theme-dark');
-                            const secondaryNav = document.querySelector('.sff-secondary-nav');
-                            if (secondaryNav) {
+                        }
+
+                        const secondaryNav = document.querySelector('.sff-secondary-nav');
+                        if (secondaryNav) {
+                            if (settings.theme === 'dark') {
+                                secondaryNav.classList.add('sff-theme-dark');
+                            } else {
                                 secondaryNav.classList.remove('sff-theme-dark');
                             }
                         }
@@ -4809,6 +4975,44 @@ function getSettingsIconUrl() {
                 });
             });
 
+            // Keyword preset buttons
+            const presetButtons = panel.querySelectorAll('.sff-keyword-preset-btn');
+            if (presetButtons.length && keywordsTextarea) {
+                presetButtons.forEach(btn => {
+                    btn.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        const presetId = btn.dataset.presetId;
+                        const preset = KEYWORD_PRESETS.find(p => p.id === presetId);
+                        if (!preset) return;
+
+                        console.log('[SFF] Preset clicked:', presetId, 'keywords:', preset.keywords);
+
+                        const existing = (keywordsTextarea.value || '')
+                            .split(',')
+                            .map(k => k.trim())
+                            .filter(Boolean);
+                        const uniqueKeywords = new Set(existing);
+                        let updated = false;
+
+                        preset.keywords.forEach(keyword => {
+                            if (!uniqueKeywords.has(keyword)) {
+                                uniqueKeywords.add(keyword);
+                                updated = true;
+                            }
+                        });
+
+                        if (updated) {
+                            keywordsTextarea.value = Array.from(uniqueKeywords).join(', ');
+                            console.log('[SFF] Updated keywords:', keywordsTextarea.value);
+                            autoResizeKeywords();
+                            UIModule.applySettings(panel);
+                            UtilsModule.saveSettings(settings);
+                            LogicModule.filterActivities();
+                        }
+                    });
+                });
+            }
+
             // Real-time text input updates for immediate effect
             const textInputs = panel.querySelectorAll('.sff-keywords, .sff-allowed-athletes, .sff-ignored-athletes, .sff-minKm, .sff-maxKm, .sff-minMins, .sff-maxMins, .sff-minElevM, .sff-maxElevM');
             textInputs.forEach(input => {
@@ -4880,44 +5084,6 @@ function getSettingsIconUrl() {
                     }
                 });
             });
-
-            // Keyword preset buttons
-            const presetButtons = panel.querySelectorAll('.sff-keyword-preset-btn');
-            if (presetButtons.length && keywordsTextarea) {
-                presetButtons.forEach(btn => {
-                    btn.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        const presetId = btn.dataset.presetId;
-                        const preset = KEYWORD_PRESETS.find(p => p.id === presetId);
-                        if (!preset) return;
-
-                        console.log('[SFF] Preset clicked:', presetId, 'keywords:', preset.keywords);
-
-                        const existing = (keywordsTextarea.value || '')
-                            .split(',')
-                            .map(k => k.trim())
-                            .filter(Boolean);
-                        const uniqueKeywords = new Set(existing);
-                        let updated = false;
-
-                        preset.keywords.forEach(keyword => {
-                            if (!uniqueKeywords.has(keyword)) {
-                                uniqueKeywords.add(keyword);
-                                updated = true;
-                            }
-                        });
-
-                        if (updated) {
-                            keywordsTextarea.value = Array.from(uniqueKeywords).join(', ');
-                            console.log('[SFF] Updated keywords:', keywordsTextarea.value);
-                            autoResizeKeywords();
-                            UIModule.applySettings(panel);
-                            UtilsModule.saveSettings(settings);
-                            LogicModule.filterActivities();
-                        }
-                    });
-                });
-            }
 
             // Share extension button
             const shareBtn = panel.querySelector('.sff-share-btn');
@@ -5013,6 +5179,9 @@ function getSettingsIconUrl() {
                     // Update position to stay in viewport (without hiding panel)
                     this.keepInViewport(panel);
 
+                    // Follow Strava's header state (row vs. our own row) at the new width
+                    this.syncHeaderLayout();
+
                     // Save new position
                     Storage.set('sffPanelPos', {
                         left: panel.style.left,
@@ -5060,7 +5229,7 @@ function getSettingsIconUrl() {
                     // Position panel directly under the active button
                     // On activity pages there is no header button, so the row button is the only
                     // anchor the panel can be placed under.
-                    const activeBtn = (window.innerWidth <= 1479 && secondaryFilterBtn) ? secondaryFilterBtn : (btn || secondaryFilterBtn);
+                    const activeBtn = [btn, secondaryFilterBtn].find(el => el && el.offsetWidth > 0) || btn || secondaryFilterBtn;
                     const btnRect = activeBtn.getBoundingClientRect();
                     const gap = 5; // Small gap between button and panel
 
@@ -5125,7 +5294,7 @@ function getSettingsIconUrl() {
                     const kudosButtons = document.querySelectorAll("button[data-testid='kudos_button']");
 
                     kudosButtons.forEach(button => {
-                        const feedEntry = button.closest('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                        const feedEntry = button.closest(FEED_ENTRY_SELECTOR);
                         if (feedEntry && feedEntry.style.display !== 'none' && button.title !== 'View all kudos') {
                             button.click();
                             kudosGiven++;
@@ -5362,6 +5531,8 @@ function getSettingsIconUrl() {
                         settings.hideCyql = isChecked;
                         settings.hideEviso = isChecked;
                         settings.hideRestortrain = isChecked;
+                        settings.hideKlimatApp = isChecked;
+                        settings.hideMyBikeTraffic = isChecked;
                         UtilsModule.saveSettings(settings);
                         
                         // Update all individual checkboxes
@@ -5386,6 +5557,8 @@ function getSettingsIconUrl() {
                         LogicModule.updateCyqlVisibility();
                         LogicModule.updateEvisoVisibility();
                         LogicModule.updateRestortrainVisibility();
+                        LogicModule.updateKlimatAppVisibility();
+                        LogicModule.updateMyBikeTrafficVisibility();
                         LogicModule.updateCustomEmbedVisibility();
                     }
                     
@@ -5396,7 +5569,6 @@ function getSettingsIconUrl() {
                         LogicModule.updateMyWindsockVisibility();
                     }
                     if (e.target.classList.contains('sff-hideSummitbag')) {
-                        console.log('[SFF] Summitbag checkbox clicked:', e.target.checked);
                         settings.hideSummitbag = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateSummitbagVisibility();
@@ -5405,6 +5577,11 @@ function getSettingsIconUrl() {
                         settings.hideRunHealth = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateRunHealthVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideWandrer')) {
+                        settings.hideWandrer = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateWandrerVisibility();
                     }
                     if (e.target.classList.contains('sff-hideBandok')) {
                         settings.hideBandok = e.target.checked;
@@ -5455,6 +5632,16 @@ function getSettingsIconUrl() {
                         settings.hideRestortrain = e.target.checked;
                         UtilsModule.saveSettings(settings);
                         LogicModule.updateRestortrainVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideKlimatApp')) {
+                        settings.hideKlimatApp = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateKlimatAppVisibility();
+                    }
+                    if (e.target.classList.contains('sff-hideMyBikeTraffic')) {
+                        settings.hideMyBikeTraffic = e.target.checked;
+                        UtilsModule.saveSettings(settings);
+                        LogicModule.updateMyBikeTrafficVisibility();
                     }
                     if (e.target.classList.contains('sff-preventVideoAutoplay')) {
                         settings.preventVideoAutoplay = e.target.checked;
@@ -5690,9 +5877,6 @@ function getSettingsIconUrl() {
 
             // Setup responsive behavior
             this.setupWindowResize(panel);
-            if (btn) {
-                this.setupButtonResponsive(btn);
-            }
             this.updateActivityCount(panel);
             this.updateFilterLabels(panel, settings.unitSystem);
 
@@ -5980,43 +6164,6 @@ function getSettingsIconUrl() {
                 } catch (e) {}
             });
         },
-
-        setupButtonResponsive(btn) {
-            const adjust = () => {
-                const w = window.innerWidth;
-                // When width <= 985px, button is on the left; adjust its left offset smoothly
-                if (w <= 985) {
-                    const minW = 760; // at and below this, we want the MIN left offset (closest to logo)
-                    const maxW = 985; // at this width, we want the MAX left offset
-                    const minLeft = 180; // px (closest to logo on very small widths)
-                    const maxLeft = 265; // px (more to the right when there's space)
-
-                    let leftPx;
-                    if (w <= minW) {
-                        leftPx = minLeft; // smallest left when width is smallest
-                    } else {
-                        const t = (maxW - w) / (maxW - minW); // 0..1 as width shrinks
-                        // As width shrinks, move left toward logo (decrease left value)
-                        leftPx = Math.round(maxLeft - t * (maxLeft - minLeft));
-                    }
-
-                    btn.style.setProperty('left', leftPx + 'px', 'important');
-                    btn.style.setProperty('right', 'auto', 'important');
-                    btn.style.setProperty('top', '10px', 'important');
-                } else {
-                    // Clear inline overrides so CSS media queries control right-mode positioning
-                    btn.style.removeProperty('left');
-                    btn.style.removeProperty('right');
-                    btn.style.removeProperty('top');
-                }
-            };
-
-            // Run once now and on resize
-            adjust();
-            window.addEventListener('resize', adjust);
-            // Also run after a short delay to allow page header to stabilize
-            setTimeout(adjust, 250);
-        }
     };
 
     // Logic Module - Step 6 of modular refactoring
@@ -6028,6 +6175,50 @@ function getSettingsIconUrl() {
                     this[key] = this[key].bind(this);
                 }
             }
+        },
+
+        // The preset embed filters all work on an activity's description block. Inside the feed
+        // that block is a wrapper inside a feed entry, but an activity detail page renders its
+        // description outside any feed entry - which is why those filters never applied there.
+        // Returning both kinds here lets every filter work unchanged on either page.
+        getDescriptionBlocks() {
+            const blocks = [];
+            document.querySelectorAll(FEED_ENTRY_SELECTOR).forEach(entry => {
+                const wrapper = entry.querySelector('[data-testid="activity_description_wrapper"]');
+                if (wrapper) blocks.push(wrapper);
+            });
+            if (UtilsModule.isOnActivityPage()) {
+                const detailBlock = document.querySelector('.activity-description-container')
+                    || document.querySelector('[data-testid="activity_description_wrapper"]');
+                if (detailBlock && !blocks.includes(detailBlock)) blocks.push(detailBlock);
+            }
+            return blocks;
+        },
+
+        // An embed can be the only thing in a description. Hiding that paragraph leaves Strava's
+        // "..." expander standing on the page, and opening it shows an empty box. Once nothing in
+        // a detail description is left visible, the description block goes with it - expander
+        // included, because it lives inside that block.
+        collapseEmptyDetailDescription() {
+            if (!UtilsModule.isOnActivityPage()) return;
+            document.querySelectorAll('.activity-description-container').forEach(container => {
+                const paragraphs = Array.from(container.querySelectorAll('p'));
+                if (paragraphs.length === 0) return;
+
+                const hiddenByUs = p => p.style.display === 'none' || p.classList.contains('sff-hide-preset');
+                const visible = paragraphs.filter(p => !hiddenByUs(p) && getComputedStyle(p).display !== 'none');
+                const collapsedByUs = container.dataset.sffHiddenEmpty === '1';
+
+                if (visible.length === 0 && paragraphs.some(hiddenByUs)) {
+                    if (!collapsedByUs) {
+                        container.dataset.sffHiddenEmpty = '1';
+                        container.classList.add('sff-hide-preset');
+                    }
+                } else if (collapsedByUs) {
+                    container.classList.remove('sff-hide-preset');
+                    delete container.dataset.sffHiddenEmpty;
+                }
+            });
         },
 
         // Helper to manage read more button visibility when hiding embed paragraphs
@@ -6118,7 +6309,7 @@ function getSettingsIconUrl() {
 
         updateJoinedChallengesVisibility() {
             try {
-                const entries = document.querySelectorAll('[data-testid="web-feed-entry"], .feed-entry, .activity');
+                const entries = document.querySelectorAll(FEED_ENTRY_SELECTOR);
                 entries.forEach(entry => {
                     if (this.isChallengeEntry(entry)) {
                         if (settings.enabled && settings.hideJoinedChallenges) {
@@ -6269,7 +6460,7 @@ function getSettingsIconUrl() {
 
         updateVideoAutoplayControl() {
             try {
-                const videos = document.querySelectorAll('.activity video, .feed-entry video, [data-testid="web-feed-entry"] video');
+                const videos = document.querySelectorAll(FEED_ENTRY_SELECTOR + ' video');
 
                 videos.forEach(video => {
                     if (!video.__sffAutoplayGuardBound) {
@@ -6364,47 +6555,38 @@ function getSettingsIconUrl() {
 
         updateWandrerVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
+                    // Wandrer writes a summary line ("3.66 new miles") above its credit line, and
+                    // only the credit names the service. The summary is part of the embed too, so
+                    // the block goes as a whole rather than the one paragraph that matches.
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => /\bwandrer\b/i.test(p.textContent?.trim() || ''));
-                    if (hasEmbed && settings.enabled && settings.hideWandrer) {
-                        paragraphs.forEach(p => {
-                            if (/\bwandrer\b/i.test(p.textContent?.trim() || '')) {
-                                p.style.display = 'none';
-                            }
-                        });
-                    } else {
-                        paragraphs.forEach(p => {
-                            if (/\bwandrer\b/i.test(p.textContent?.trim() || '')) {
-                                p.style.display = '';
-                            }
-                        });
+                    const shouldHide = hasEmbed && settings.enabled && settings.hideWandrer;
+
+                    // Class-based hide keeps Strava's own inline display:none intact, and the
+                    // per-filter marker stops another preset filter's restore pass undoing it.
+                    if (shouldHide) {
+                        descriptionWrapper.classList.add('sff-hide-preset');
+                        descriptionWrapper.dataset.sffHiddenBy = 'sff-wandrer';
+                    } else if (descriptionWrapper.dataset.sffHiddenBy === 'sff-wandrer') {
+                        descriptionWrapper.classList.remove('sff-hide-preset');
+                        delete descriptionWrapper.dataset.sffHiddenBy;
                     }
-                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideWandrer);
+
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, shouldHide);
                 });
             } catch (e) { /* updateWandrerVisibility error */ }
         },
 
         updateSummitbagVisibility() {
-            console.log('[SFF] updateSummitbagVisibility called');
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                let foundCount = 0, hiddenCount = 0;
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => {
                         const text = p.textContent?.trim() || '';
                         return text.includes('summitbag.com');
                     });
-                    if (hasEmbed) foundCount++;
-                    const shouldHide = hasEmbed && settings.enabled && settings.hideSummitbag;
-                    if (shouldHide) hiddenCount++;
-                    if (shouldHide) {
+                    if (hasEmbed && settings.enabled && settings.hideSummitbag) {
                         paragraphs.forEach(p => {
                             if (p.textContent?.trim().includes('summitbag.com')) {
                                 p.style.display = 'none';
@@ -6417,30 +6599,23 @@ function getSettingsIconUrl() {
                     }
                     if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideSummitbag);
                 });
-                if (foundCount > 0) console.log('[SFF] Summitbag:', foundCount, 'found,', hiddenCount, 'hidden, enabled:', settings.enabled, 'hideSummitbag:', settings.hideSummitbag);
-            } catch (e) { console.error('[SFF] Summitbag error:', e); }
+            } catch (e) { /* updateSummitbagVisibility error */ }
         },
 
         updateBandokVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
-                    const hasEmbed = Array.from(paragraphs).some(p => {
-                        const text = p.textContent?.trim() || '';
-                        return text.includes('bandok.com');
-                    });
+                    const hasEmbed = Array.from(paragraphs).some(p => /bandok\.com/i.test(p.textContent?.trim() || ''));
                     if (hasEmbed && settings.enabled && settings.hideBandok) {
                         paragraphs.forEach(p => {
-                            if (p.textContent?.trim().includes('bandok.com')) {
+                            if (/bandok\.com/i.test(p.textContent?.trim() || '')) {
                                 p.style.display = 'none';
                             }
                         });
                     } else {
                         paragraphs.forEach(p => {
-                            if (p.textContent?.trim().includes('bandok.com')) {
+                            if (/bandok\.com/i.test(p.textContent?.trim() || '')) {
                                 p.style.display = '';
                             }
                         });
@@ -6452,10 +6627,7 @@ function getSettingsIconUrl() {
 
         updateCorosVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => /\bcoros\b/i.test(p.textContent?.trim() || ''));
                     if (hasEmbed && settings.enabled && settings.hideCoros) {
@@ -6478,10 +6650,7 @@ function getSettingsIconUrl() {
 
         updateRunHealthVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => /myTF\.run|run-health/i.test(p.textContent?.trim() || ''));
                     if (hasEmbed && settings.enabled && settings.hideRunHealth) {
@@ -6504,10 +6673,7 @@ function getSettingsIconUrl() {
 
         updateRouvyVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => /rouvy\.com|go\.rouvy\.com/i.test(p.textContent?.trim() || ''));
                     if (hasEmbed && settings.enabled && settings.hideRouvy) {
@@ -6530,10 +6696,7 @@ function getSettingsIconUrl() {
 
         updateZwiftRouteVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => (p.textContent?.trim() || '').startsWith('🗺️'));
                     if (hasEmbed && settings.enabled && settings.hideZwiftRoute) {
@@ -6556,10 +6719,7 @@ function getSettingsIconUrl() {
 
         updateJoinWorkoutVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => (p.textContent?.trim() || '').includes('JOIN workout'));
                     if (hasEmbed && settings.enabled && settings.hideJoinWorkout) {
@@ -6582,10 +6742,7 @@ function getSettingsIconUrl() {
 
         updateCoachCatVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => {
                         const text = p.textContent?.trim() || '';
@@ -6613,10 +6770,7 @@ function getSettingsIconUrl() {
 
         updateXertVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => {
                         const text = p.textContent?.trim() || '';
@@ -6644,10 +6798,7 @@ function getSettingsIconUrl() {
 
         updateCyqlVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     const hasEmbed = Array.from(paragraphs).some(p => /\bCyql\b|cyql\.app/i.test(p.textContent?.trim() || ''));
                     if (hasEmbed && settings.enabled && settings.hideCyql) {
@@ -6670,12 +6821,7 @@ function getSettingsIconUrl() {
 
         updateEvisoVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
-
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     const paragraphs = descriptionWrapper.querySelectorAll('p');
                     let hasEmbed = false;
 
@@ -6709,50 +6855,82 @@ function getSettingsIconUrl() {
 
         updateRestortrainVisibility() {
             try {
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
+                    // Restortrain writes the whole description block: the summary line above the credit
+                    // (e.g. "Endurance | 215min @ 27.4km/h") is part of the embed too, and Strava already
+                    // ships the "via restortrain.com" line hidden. Hide the block, not just the credit.
+                    const hasRestortrainEmbed = Array.from(descriptionWrapper.querySelectorAll('p'))
+                        .some(p => /restortrain/i.test(p.textContent?.trim() || ''));
+                    const shouldHide = hasRestortrainEmbed && settings.enabled && settings.hideRestortrain;
 
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
-
-                    const paragraphs = descriptionWrapper.querySelectorAll('p');
-
-                    // Check if ANY paragraph contains restortrain
-                    const hasRestortrainEmbed = Array.from(paragraphs).some(p => {
-                        const text = p.textContent?.trim() || '';
-                        return /restortrain/i.test(text) || /restortrain\.com/i.test(text);
-                    });
-
-                    if (hasRestortrainEmbed && settings.enabled && settings.hideRestortrain) {
-                        paragraphs.forEach(p => {
-                            const text = p.textContent?.trim() || '';
-                            if (/restortrain/i.test(text) || /restortrain\.com/i.test(text)) {
-                                p.style.display = 'none';
-                            }
-                        });
-                    } else {
-                        paragraphs.forEach(p => {
-                            const text = p.textContent?.trim() || '';
-                            if (/restortrain/i.test(text) || /restortrain\.com/i.test(text)) {
-                                p.style.display = '';
-                            }
-                        });
+                    // Class-based hide keeps Strava's own inline display:none intact, and the
+                    // 'sff-preset' marker lets the custom embeds pass skip an already hidden block.
+                    if (shouldHide) {
+                        descriptionWrapper.classList.add('sff-hide-preset');
+                        descriptionWrapper.dataset.sffHiddenBy = 'sff-preset';
+                    } else if (descriptionWrapper.dataset.sffHiddenBy === 'sff-preset') {
+                        descriptionWrapper.classList.remove('sff-hide-preset');
+                        delete descriptionWrapper.dataset.sffHiddenBy;
                     }
-                    if (hasRestortrainEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideRestortrain);
+
+                    if (hasRestortrainEmbed) this.manageReadMoreButton(descriptionWrapper, shouldHide);
                 });
             } catch (e) {
                 // updateRestortrainVisibility error
             }
         },
 
+        updateKlimatAppVisibility() {
+            try {
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    const hasEmbed = Array.from(paragraphs).some(p => /klimatapp|klimat\.app/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideKlimatApp) {
+                        paragraphs.forEach(p => {
+                            if (/klimatapp|klimat\.app/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
+                            }
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/klimatapp|klimat\.app/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
+                    }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideKlimatApp);
+                });
+            } catch (e) { /* updateKlimatAppVisibility error */ }
+        },
+
+        updateMyBikeTrafficVisibility() {
+            try {
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
+                    const paragraphs = descriptionWrapper.querySelectorAll('p');
+                    const hasEmbed = Array.from(paragraphs).some(p => /mybiketraffic/i.test(p.textContent?.trim() || ''));
+                    if (hasEmbed && settings.enabled && settings.hideMyBikeTraffic) {
+                        paragraphs.forEach(p => {
+                            if (/mybiketraffic/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = 'none';
+                            }
+                        });
+                    } else {
+                        paragraphs.forEach(p => {
+                            if (/mybiketraffic/i.test(p.textContent?.trim() || '')) {
+                                p.style.display = '';
+                            }
+                        });
+                    }
+                    if (hasEmbed) this.manageReadMoreButton(descriptionWrapper, settings.enabled && settings.hideMyBikeTraffic);
+                });
+            } catch (e) { /* updateMyBikeTrafficVisibility error */ }
+        },
+
         updateCustomEmbedVisibility() {
             try {
                 if (!settings.customEmbedFilters || !settings.customEmbedFilters.trim()) {
                     // No custom filters, restore any previously hidden paragraphs
-                    const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                    activities.forEach(activity => {
-                        const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                        if (!descriptionWrapper) return;
+                    this.getDescriptionBlocks().forEach(descriptionWrapper => {
                         const paragraphs = descriptionWrapper.querySelectorAll('p');
                         paragraphs.forEach(p => {
                             if (p.dataset.sffHiddenBy === 'sff-custom') {
@@ -6774,10 +6952,7 @@ function getSettingsIconUrl() {
                 const filters = settings.customEmbedFilters.split(',').map(f => f.trim()).filter(f => f.length > 0);
                 if (filters.length === 0) {
                     // No filters after parsing, restore all hidden paragraphs
-                    const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-                    activities.forEach(activity => {
-                        const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                        if (!descriptionWrapper) return;
+                    this.getDescriptionBlocks().forEach(descriptionWrapper => {
                         const paragraphs = descriptionWrapper.querySelectorAll('p');
                         paragraphs.forEach(p => {
                             if (p.dataset.sffHiddenBy === 'sff-custom') {
@@ -6789,12 +6964,7 @@ function getSettingsIconUrl() {
                     return;
                 }
 
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
-
-                activities.forEach(activity => {
-                    const descriptionWrapper = activity.querySelector('[data-testid="activity_description_wrapper"]');
-                    if (!descriptionWrapper) return;
-
+                this.getDescriptionBlocks().forEach(descriptionWrapper => {
                     // Skip if already hidden by a preset embed filter
                     if (descriptionWrapper.dataset.sffHiddenBy === 'sff-preset') return;
 
@@ -6845,7 +7015,7 @@ function getSettingsIconUrl() {
                 headers.forEach(header => {
                     const text = header.textContent?.trim() || '';
                     if (/joined a club/i.test(text)) {
-                        const entry = header.closest('[data-testid="web-feed-entry"], .feed-entry, .activity');
+                        const entry = header.closest(FEED_ENTRY_SELECTOR);
                         if (!entry) return;
                         const container = entry.closest('[id^="feed-entry-"]') || entry;
                         toHide.add(container);
@@ -6853,7 +7023,7 @@ function getSettingsIconUrl() {
                 });
 
                 // 2) Button-based detection: entries containing a "Join Club" button/CTA
-                const entries = document.querySelectorAll('[data-testid="web-feed-entry"], .feed-entry, .activity');
+                const entries = document.querySelectorAll(FEED_ENTRY_SELECTOR);
                 entries.forEach(entry => {
                     const hasJoinCta = !![...(entry.querySelectorAll('button, a[role="button"], a'))]
                         .some(el => /\bjoin club\b/i.test(el.textContent?.trim() || ''));
@@ -6926,12 +7096,12 @@ function getSettingsIconUrl() {
             }
         },
 
-filterActivities() {
+        filterActivities() {
             return this._withModePreset(() => this._filterActivitiesCore());
         },
 
         _filterActivitiesCore() {
-            const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+            const activities = document.querySelectorAll(FEED_ENTRY_SELECTOR);
 
             if (!settings.enabled) {
                 activities.forEach(activity => {
@@ -7390,6 +7560,16 @@ filterActivities() {
             const placeButton = () => {
                 const kudosListItem = document.getElementById('gj-kudos-li');
 
+                // The button clicks the kudos button of every visible feed entry, so off the
+                // dashboard it has nothing to act on - yet every filter pass (a mode switch calls
+                // applyAllFilters) still planted it in Strava's header, where it appeared to come
+                // and go with the mode. Feed pages only.
+                if (!UtilsModule.isOnDashboard()) {
+                    if (kudosListItem) kudosListItem.remove();
+                    UIModule.syncSecondaryKudosVisibility();
+                    return;
+                }
+
                 if (!settings.enabled || !settings.showKudosButton) {
                     if (kudosListItem) kudosListItem.remove();
                     // Also ensure secondary button is hidden
@@ -7403,7 +7583,8 @@ filterActivities() {
                     return;
                 }
 
-                const navList = document.querySelector('.user-nav.nav-group');
+                // The same header anchors as the filter button (see UIModule.getHeaderNavHost)
+                const navList = UIModule.getHeaderNavHost().list;
 
                 if (navList) {
                     const newListItem = document.createElement('li');
@@ -7429,7 +7610,7 @@ filterActivities() {
                         const kudosButtons = document.querySelectorAll("button[data-testid='kudos_button']");
 
                         kudosButtons.forEach(button => {
-                            const feedEntry = button.closest('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                            const feedEntry = button.closest(FEED_ENTRY_SELECTOR);
                             if (feedEntry && feedEntry.style.display !== 'none' && button.title !== 'View all kudos') {
                                 button.click();
                                 kudosGiven++;
@@ -7486,7 +7667,7 @@ filterActivities() {
             let anchorEl = null;
             let anchorTop = 0;
             const refreshAnchor = () => {
-                const entries = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                const entries = document.querySelectorAll(FEED_ENTRY_SELECTOR);
                 for (const e of entries) {
                     if (e.offsetParent === null) continue; // hidden by filter or unrendered
                     const r = e.getBoundingClientRect();
@@ -7523,8 +7704,8 @@ filterActivities() {
                     for (const node of m.addedNodes) {
                         if (!(node instanceof HTMLElement)) continue;
                         if (
-                            (node.matches && node.matches('.activity, .feed-entry, [data-testid="web-feed-entry"]')) ||
-                            node.querySelector?.('.activity, .feed-entry, [data-testid="web-feed-entry"]')
+                            (node.matches && node.matches(FEED_ENTRY_SELECTOR)) ||
+                            node.querySelector?.(FEED_ENTRY_SELECTOR)
                         ) {
                             feedAdded = true;
                             debouncedFilter();
@@ -7566,6 +7747,19 @@ filterActivities() {
             this.updateJoinedChallengesVisibility();
             this.updateSuggestedFriendsVisibility();
             this.updateYourClubsVisibility();
+            this._applyEmbedFiltersCore();
+            this.updateAthleteJoinedClubVisibility();
+            this.updateVideoAutoplayControl();
+        },
+
+        // Third-party embeds are the only section filters that also mean something away from the
+        // feed: an activity detail page renders the description - and with it the service
+        // credits - itself. Kept separate so that page can run just these.
+        applyEmbedFilters() {
+            return this._withModePreset(() => this._applyEmbedFiltersCore());
+        },
+
+        _applyEmbedFiltersCore() {
             this.updateMyWindsockVisibility();
             this.updateWandrerVisibility();
             this.updateSummitbagVisibility();
@@ -7580,9 +7774,10 @@ filterActivities() {
             this.updateCyqlVisibility();
             this.updateEvisoVisibility();
             this.updateRestortrainVisibility();
+            this.updateKlimatAppVisibility();
+            this.updateMyBikeTrafficVisibility();
             this.updateCustomEmbedVisibility();
-            this.updateAthleteJoinedClubVisibility();
-            this.updateVideoAutoplayControl();
+            this.collapseEmptyDetailDescription();
         },
 
         _applyAllFiltersCore() {
@@ -7595,7 +7790,7 @@ filterActivities() {
                 this.manageSeeMoreButtons();
             } else {
                 // When filter is disabled, show all activities and reset sections
-                const activities = document.querySelectorAll('.activity, .feed-entry, [data-testid="web-feed-entry"]');
+                const activities = document.querySelectorAll(FEED_ENTRY_SELECTOR);
                 activities.forEach(activity => {
                     activity.style.display = '';
                 });
@@ -7640,7 +7835,7 @@ filterActivities() {
                 // Reset footer visibility
                 this.updateFooterVisibility();
                 // Reset joined challenges
-                const entries = document.querySelectorAll('[data-testid="web-feed-entry"], .feed-entry, .activity');
+                const entries = document.querySelectorAll(FEED_ENTRY_SELECTOR);
                 entries.forEach(entry => {
                     if (entry.dataset.sffHiddenChallenge === 'sff') {
                         entry.style.display = '';
@@ -7708,7 +7903,9 @@ filterActivities() {
                 seeMoreBtn.dataset.expanded = 'false';
 
                 // Insert button after activity title
-                const titleContainer = activityNameLink.closest('.oJVfx, .UDqjM');
+                // The React entry keeps the title in an h3 with no class of its own, so the
+                // link's parent is the container on that markup.
+                const titleContainer = activityNameLink.closest('.oJVfx, .UDqjM') || activityNameLink.parentElement;
                 if (titleContainer) {
                     titleContainer.style.display = 'flex';
                     titleContainer.style.alignItems = 'center';
@@ -8204,7 +8401,7 @@ filterActivities() {
             // Elements that scroll horizontally on narrow screens. The elevation
             // chart is a div scroller; the segment list is a <table> which cannot
             // host a div child, so its bar is pinned to the parent section.
-            const SELECTORS = '#elevation-chart, table.segments, .segments-list';
+            const SELECTORS = '#elevation-chart, table.segments, .segments-list, [data-sff-pan]';
 
             const floaters = []; // viewport-pinned bar clones for tall sections
 
@@ -8275,10 +8472,16 @@ filterActivities() {
                     const max = scroller.scrollWidth - scroller.clientWidth;
                     if (max <= 1) { ind.style.display = 'none'; return; }
                     ind.style.display = 'block';
-                    ind.style.transform = 'translateX(' + scroller.scrollLeft + 'px)';
+                    // Park the bar over the visible part by position and width, not by a
+                    // transform: a translated absolute child counts towards scrollWidth, so a
+                    // strip could be dragged a long way past its last item into blank space.
+                    ind.style.left = (scroller.scrollLeft + 8) + 'px';
+                    ind.style.right = 'auto';
+                    ind.style.width = Math.max(40, scroller.clientWidth - 16) + 'px';
                     layoutThumb(ind, thumb, scroller);
                 };
                 scroller.addEventListener('scroll', sync, { passive: true });
+                scroller.__sffPanSync = sync; // rescans re-run this, the width is set in px
                 sync();
             };
 
@@ -8307,13 +8510,21 @@ filterActivities() {
             };
 
             const enhance = (el) => {
-                if (!el || el.__sffPanDone) return;
+                if (!el) return;
                 if (el.scrollWidth <= el.clientWidth + 1) return; // not overflowing yet
                 if (el.tagName === 'TABLE') {
+                    if (el.__sffPanDone) return; // its bar lives on <body>, so it survives
                     const host = el.parentElement;
                     if (!host) return;
                     buildIndicator(host, el, true); // segments: floating bar only
                 } else {
+                    // The graph and the elevation chart re-render their own children on a
+                    // resize or a bar click, which throws the in-flow bar away with them.
+                    // The done flag alone would leave them barceless for good.
+                    if (el.__sffPanDone && el.querySelector(':scope > .sff-pan-indicator')) {
+                        if (el.__sffPanSync) el.__sffPanSync(); // width is set in px, so re-fit
+                        return;
+                    }
                     buildIndicator(el, el, false); // chart: in-flow bar only
                 }
                 bindDrag(el);
@@ -8322,6 +8533,9 @@ filterActivities() {
 
             const scan = () => {
                 if (!sffIsMobileWidth()) { updateFloaters(); return; }
+                // A chart-type click can rebuild the profile graph, which drops the inline
+                // width that made its plot readable; re-fit before re-scanning the strips.
+                this.setupActivityGraphPan();
                 document.querySelectorAll(SELECTORS).forEach(enhance);
                 updateFloaters();
             };
@@ -8403,6 +8617,113 @@ filterActivities() {
                 });
                 onScroll();
             } catch (e) { /* setupBackToTopButton error */ }
+        },
+
+        // A long-time athlete can carry a hundred trophies, and at three per row on a phone that
+        // is a wall of scrolling. Show the first three rows, with one button to lift the cap.
+        // The list is server-rendered, so hiding items cannot fight a re-render.
+        setupProfileTrophyCollapse() {
+            try {
+                if (!settings.enabled || !settings.mobileResponsive) return;
+                if (!UtilsModule.isOnProfilePage() || !sffIsMobileWidth()) return;
+
+                const limit = 9;
+                document.querySelectorAll('ul.list-trophies').forEach(list => {
+                    if (list.dataset.sffTrophyFold === '1') return;
+                    const items = Array.from(list.children).filter(el => el.tagName === 'LI');
+                    if (items.length <= limit) return;
+
+                    list.dataset.sffTrophyFold = '1';
+                    // Marked as a mobile inline override so leaveMobileResponsive() restores them
+                    // along with everything else it un-hides.
+                    items.slice(limit).forEach(li => {
+                        li.setAttribute('data-sff-mobile-inline', '1');
+                        li.style.setProperty('display', 'none', 'important');
+                    });
+
+                    const more = document.createElement('button');
+                    more.type = 'button';
+                    more.className = 'sff-trophies-more';
+                    more.textContent = `Show all ${items.length} trophies`;
+                    more.style.cssText = 'display:block;width:100%;margin:8px 0 0;padding:10px;'
+                        + 'background:transparent;border:2px solid #fc5200;border-radius:4px;'
+                        + 'color:#fc5200;font-size:14px;font-weight:600;cursor:pointer;';
+                    more.addEventListener('click', () => {
+                        items.forEach(li => {
+                            li.style.removeProperty('display');
+                            li.removeAttribute('data-sff-mobile-inline');
+                        });
+                        more.remove();
+                    });
+                    list.insertAdjacentElement('afterend', more);
+                });
+            } catch (e) { /* setupProfileTrophyCollapse error */ }
+        },
+
+        // The weekly bar graph, not the buttons. Strava positions all 56 weeks by percentage
+        // inside #interval-graph-columns, so a phone squeezes every bar into a few pixels.
+        // On phones the plot is widened to a bit over two screens and the wrapper becomes the
+        // sideways scroller the pan helper draws its orange bar on. The width has to be set
+        // inline: the mobile sheet's universal `max-width: 100vw` cap would otherwise hold the
+        // plot at viewport width and leave blank space past the last week. Tablets keep the
+        // native graph, which already has room.
+        setupActivityGraphPan() {
+            try {
+                if (!settings.enabled || !settings.mobileResponsive) return;
+                if (!UtilsModule.isOnProfilePage() || !sffIsMobileWidth()) return;
+
+                const scroller = document.querySelector('#interval-graph-columns');
+                if (!scroller) return;
+
+                if (!sffIsPhoneWidth()) {
+                    // Back to the native graph: drop the widened plot and the pan strip, so a
+                    // return to phone width tags (and re-tags) the scroller from scratch.
+                    resetProfileGraphWidth();
+                    if (scroller.hasAttribute('data-sff-pan')) {
+                        scroller.removeAttribute('data-sff-pan');
+                        scroller.__sffPanDone = false;
+                        const ind = scroller.querySelector(':scope > .sff-pan-indicator');
+                        if (ind) ind.remove();
+                    }
+                    return;
+                }
+
+                const graph = scroller.querySelector(':scope > .athlete-graph');
+                if (!graph) return;
+
+                // clientWidth is 0 until the block is laid out; the warm-up retries come back.
+                const plotWidth = Math.max(900, Math.min(1200, Math.round(scroller.clientWidth * 2.4)));
+                if (graph.getAttribute('data-sff-graph-w') !== String(plotWidth)) {
+                    graph.setAttribute('data-sff-graph-w', String(plotWidth));
+                    graph.style.setProperty('width', plotWidth + 'px', 'important');
+                    graph.style.setProperty('max-width', 'none', 'important');
+                    // Both plot layers place their weeks by percentage, so each one has to
+                    // span the widened box as well.
+                    graph.querySelectorAll(':scope > ul.intervals, :scope > .x-axis').forEach(el => {
+                        el.style.setProperty('width', plotWidth + 'px', 'important');
+                        el.style.setProperty('max-width', 'none', 'important');
+                    });
+                }
+
+                if (!scroller.hasAttribute('data-sff-pan')) {
+                    scroller.setAttribute('data-sff-pan', '1');
+                    if (window.__sffPanScan) window.__sffPanScan();
+                }
+            } catch (e) { /* setupActivityGraphPan error */ }
+        },
+
+        // Strava mounts the detail description a beat after the page itself, so the pass that runs
+        // at init finds no paragraphs yet. Two short follow-ups catch the hydrated block.
+        applyDetailPageEmbeds() {
+            try {
+                if (!settings.enabled) return;
+                if (!UtilsModule.isOnActivityPage()) return;
+                this.applyEmbedFilters();
+                setTimeout(() => this.applyEmbedFilters(), 600);
+                setTimeout(() => this.applyEmbedFilters(), 1500);
+            } catch (e) {
+                // applyDetailPageEmbeds error
+            }
         },
 
         // Keep the detail-page grid in step with a changed "Show more stats" setting, no reload.
@@ -8907,8 +9228,44 @@ filterActivities() {
     // width: phones, sideways phones, tablets and narrow desktop windows.
     const SFF_MOBILE_BREAKPOINT = 1305;
 
+    // Phones only. The profile graph needs a widened, pannable plot down here;
+    // a tablet already gives each of the 56 weeks enough room, so it keeps the
+    // native graph.
+    const SFF_PHONE_BREAKPOINT = 765;
+
     function sffIsMobileWidth() {
         return window.outerWidth <= SFF_MOBILE_BREAKPOINT;
+    }
+
+    function sffIsPhoneWidth() {
+        return window.outerWidth <= SFF_PHONE_BREAKPOINT;
+    }
+
+    // The profile graph's plot is widened in px (setupActivityGraphPan), and the two
+    // percentage-positioned plot layers are stretched with it. All of that is inline,
+    // so it has to be taken off by hand when the graph stops being pannable.
+    function resetProfileGraphWidth() {
+        document.querySelectorAll('.athlete-graph[data-sff-graph-w]').forEach(graph => {
+            graph.removeAttribute('data-sff-graph-w');
+            graph.style.removeProperty('width');
+            graph.style.removeProperty('max-width');
+            graph.querySelectorAll(':scope > ul.intervals, :scope > .x-axis').forEach(el => {
+                el.style.removeProperty('width');
+                el.style.removeProperty('max-width');
+            });
+        });
+    }
+
+    // A strip that the mobile sheet made scrollable (currently the activity-log chart controls)
+    // carries a pan marker and our orange bar; both go when the mobile layout does.
+    function clearPanStrips() {
+        document.querySelectorAll('[data-sff-pan]').forEach(el => {
+            el.removeAttribute('data-sff-pan');
+            el.__sffPanDone = false;
+            const ind = el.querySelector(':scope > .sff-pan-indicator');
+            if (ind) ind.remove();
+        });
+        resetProfileGraphWidth();
     }
 
     function injectMobileResponsiveCSS() {
@@ -8916,7 +9273,7 @@ filterActivities() {
         // Targeted mobile CSS — works WITH Strava's layout instead of fighting it.
         // No @media query — the attribute is only set when outerWidth <= breakpoint.
         mobileStyleEl = GM_addStyle(`
-            /* SFF Mobile Responsive - Activity Pages */
+            /* SFF Mobile Responsive - Activity and Profile Pages */
 
             /* ======== BASE MOBILE OVERRIDES ======== */
             body[data-sff-mobile] {
@@ -9222,6 +9579,11 @@ filterActivities() {
                 width: 100% !important;
                 max-width: 100% !important;
                 overflow-x: auto !important;
+                /* Firefox computes overflow-y: auto the moment overflow-x is auto, which made
+                   these strips two-axis scrollers: a vertical drag over the plot scrolled the
+                   plot instead of the page, so the page felt like it had a stray scroll. The
+                   strip pans sideways only. */
+                overflow-y: hidden !important;
             }
 
             /* The 960px-wide chart SVG has no viewBox so it cannot scale down;
@@ -9350,6 +9712,67 @@ filterActivities() {
                 object-fit: contain !important;
             }
 
+            /* Legacy lightbox (Kudos / Comments / Other Athletes) is a fixed-width desktop panel
+               anchored a few pixels in from the edge, so on a phone its right side hangs past the
+               viewport. Capping at 100vw was not enough: that is the width of the *viewport*, and
+               the panel is also offset from the left, so the two add up. Cap the panel - and
+               everything it contains, since the fixed width can sit on any wrapper - to the
+               viewport minus its own gutters, with border-box so padding cannot re-add them. */
+            body[data-sff-mobile] #lightbox *,
+            body[data-sff-mobile] .lightbox * {
+                max-width: calc(100vw - 24px) !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Only the panel is capped, never .lightbox itself: that one is the fixed full-screen
+               container behind it, and shrinking it would leave the last 24px of the screen
+               uncovered - no backdrop there, and a tap outside the panel would not close it. */
+            body[data-sff-mobile] .lightbox-window {
+                left: 12px !important;
+                right: 12px !important;
+                width: auto !important;
+                /* The window is a fixed-height desktop panel with a scrolling middle. On a phone
+                   the tabs plus the comment composer are taller than that height, and the composer
+                   spilled out under the panel's bottom edge. Fit the content instead, up to the
+                   viewport, and let the list above carry the scrolling. */
+                display: flex !important;
+                flex-direction: column !important;
+                height: auto !important;
+                max-height: calc(100vh - 24px) !important;
+                overflow: hidden !important;
+            }
+
+            body[data-sff-mobile] .lightbox-window .modal-body {
+                flex: 1 1 auto !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+
+            /* With the panel capped, the athlete rows have to shrink instead of pushing it wider:
+               the middle column refuses to go below its longest link without a zero min-width. */
+            body[data-sff-mobile] #lightbox .media,
+            body[data-sff-mobile] #lightbox .media-content {
+                min-width: 0 !important;
+                flex-wrap: wrap !important;
+            }
+
+            body[data-sff-mobile] #lightbox .media-body,
+            body[data-sff-mobile] #lightbox .media-body .name,
+            body[data-sff-mobile] #lightbox .activity-title {
+                min-width: 0 !important;
+                white-space: normal !important;
+                overflow-wrap: anywhere !important;
+            }
+
+            body[data-sff-mobile] #lightbox .action-buttons {
+                flex: 0 0 auto !important;
+            }
+
+            body[data-sff-mobile] #lightbox .action-buttons .btn {
+                white-space: nowrap !important;
+            }
+
             /* Chart selector table (Pace/GAP/Cadence/Temperature): give it its
                natural width and stop values like "5:46 /km" wrapping in two */
             body[data-sff-mobile] #chart-controls {
@@ -9364,6 +9787,7 @@ filterActivities() {
                 box-sizing: border-box !important;
                 text-align: center !important;
                 overflow-x: auto !important;
+                overflow-y: hidden !important;
             }
             /* Centre each row. Auto margins also keep a row that is wider than the
                screen anchored to the left and reachable by scrolling, instead of
@@ -9388,6 +9812,8 @@ filterActivities() {
             body[data-sff-mobile] table.segments {
                 width: 100% !important;
                 overflow-x: auto !important;
+                /* same as the charts: sideways only, never a vertical scroll of its own */
+                overflow-y: hidden !important;
                 display: block !important;
             }
 
@@ -9408,26 +9834,6 @@ filterActivities() {
 
             body[data-sff-mobile] table {
                 width: 100% !important;
-            }
-
-            /* ---- Segment detail page ---- */
-            body[data-sff-mobile] .segment-effort-detail,
-            body[data-sff-mobile] .segment-effort-detail-container,
-            body[data-sff-mobile] #segment-effort-detail,
-            body[data-sff-mobile] #segment-effort {
-                width: 100% !important;
-                max-width: 100% !important;
-                padding: 0 6px !important;
-                box-sizing: border-box !important;
-            }
-
-            /* Segment leaderboard / comparison */
-            body[data-sff-mobile] .leaderboard,
-            body[data-sff-mobile] .comparison-chart,
-            body[data-sff-mobile] .effort-compare {
-                width: 100% !important;
-                max-width: 100% !important;
-                overflow-x: auto !important;
             }
 
             /* ---- Global header: compact mobile layout ---- */
@@ -9454,6 +9860,11 @@ filterActivities() {
                 padding: 0 8px !important;
                 min-height: 48px !important;
                 flex-wrap: nowrap !important;
+                /* The header's popovers (notification list, avatar menu) hang inside this bar and
+                   open right under it, where our row painted over their top edge. The bar and the
+                   row are siblings in the header, so lifting the bar lifts every popover with it. */
+                position: relative !important;
+                z-index: 1100 !important;
             }
 
             body[data-sff-mobile] #global-header .container {
@@ -9528,6 +9939,14 @@ filterActivities() {
                 margin: 0 !important;
             }
 
+            /* Pages that carry our own back-to-feed row (activity details and the rest of the
+               detail views) have nothing worth searching from inside them, so only that one
+               header button goes: the icon itself, never its wrapper, so the bell and
+               avatar keep the layout they are positioned against. */
+            body[data-sff-mobile] #global-header:has(> .sff-secondary-nav) #open-global-search-button {
+                display: none !important;
+            }
+
             /* ---- Hamburger expanded state ---- */
             body[data-sff-mobile].sff-nav-expanded .global-nav {
                 display: block !important;
@@ -9559,6 +9978,15 @@ filterActivities() {
                 margin-bottom: 4px !important;
             }
 
+            /* Group activities name several athletes in one header button, and Strava keeps
+               that line on a single row - so a long group is clipped at the card edge while
+               single-activity names wrap normally. Let it wrap like the rest. */
+            body[data-sff-mobile] [data-testid="web-feed-entry"] button {
+                white-space: normal !important;
+                overflow-wrap: break-word !important;
+                max-width: 100% !important;
+            }
+
             /* ---- Hide footer on mobile ---- */
             body[data-sff-mobile] .footer-promos,
             body[data-sff-mobile] .footer-global {
@@ -9580,9 +10008,12 @@ filterActivities() {
                 position: relative !important;
             }
 
-            /* Prevent any child elements from causing horizontal overflow */
+            /* Prevent any child elements from causing horizontal overflow. Measured against the
+               viewport rather than the parent: a percentage resolves against the containing
+               block, so a popover hanging off a 32px header icon was clamped to that icon and
+               opened as an unreadable strip. */
             body[data-sff-mobile] * {
-                max-width: 100% !important;
+                max-width: 100vw !important;
             }
 
             /* Allow specific elements to scroll horizontally if needed */
@@ -9653,6 +10084,401 @@ filterActivities() {
                 padding-bottom: 4px !important;
             }
 
+            /* ======== ATHLETE PROFILE ======== */
+            /* Scoped by body[data-sff-profile], not by an element id: the overview wraps its
+               content in #athlete-profile, while the trophy case renders the same blocks without
+               that wrapper. The spans grid above already stacks them; what follows covers the
+               blocks the grid never touches: the photo collage, the four-week summary, the tab
+               strip and the trophies. */
+
+            body[data-sff-mobile][data-sff-profile] .page.container {
+                overflow-x: hidden !important;
+            }
+
+            /* ---- Photo collage ---- */
+            /* A mosaic of cells sized for the desktop column. Left alone it keeps those sizes and
+               pushes the page sideways. */
+            body[data-sff-mobile][data-sff-profile] #header-photos,
+            body[data-sff-mobile][data-sff-profile] #header-photos > div,
+            body[data-sff-mobile][data-sff-profile] [data-react-class="AthleteProfileHeaderMediaGrid"] {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
+
+            /* ---- Last 4 Weeks: count, calendar and weekly breakdown sit side by side on the
+               desktop, which leaves each of them a third of a phone screen ---- */
+            body[data-sff-mobile][data-sff-profile] .activity-summary-v2 {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            body[data-sff-mobile][data-sff-profile] .activity-summary-v2 > div {
+                width: 100% !important;
+                max-width: 100% !important;
+                float: none !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                box-sizing: border-box !important;
+            }
+
+            body[data-sff-mobile][data-sff-profile] .activity-calendar table {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: fixed !important;
+            }
+
+            /* ---- Tab strip: five tabs never fit, so scroll it the way a phone scrolls tabs
+               rather than wrapping it into two ragged rows ---- */
+            body[data-sff-mobile][data-sff-profile] ul.tabs {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                /* Nothing may give this strip a height of its own: the vertical scroll it
+                   showed on the trophy case was the strip scrolling inside itself. */
+                height: auto !important;
+                max-height: none !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                white-space: nowrap !important;
+                scrollbar-width: none !important;
+                border-bottom: 1px solid #e6e6e6 !important;
+            }
+
+            body[data-sff-mobile][data-sff-profile] ul.tabs > li {
+                float: none !important;
+                flex: 0 0 auto !important;
+                margin: 0 !important;
+            }
+
+            body[data-sff-mobile][data-sff-profile] ul.tabs > li > a {
+                display: block !important;
+                white-space: nowrap !important;
+                padding: 8px 10px !important;
+            }
+
+            /* ---- Trophies: five across leaves a ~90px tile on a phone, so three ---- */
+            body[data-sff-mobile][data-sff-profile] ul.list-trophies {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            body[data-sff-mobile][data-sff-profile] ul.list-trophies > li {
+                float: none !important;
+                width: calc(33.333% - 6px) !important;
+                max-width: calc(33.333% - 6px) !important;
+                margin: 0 !important;
+            }
+
+            /* ---- Activity-log graph: the weekly bars ---- */
+            /* Strava positions the 56 weeks by percentage, so a phone squeezes each bar into a
+               few pixels. Phones only: LogicModule.setupActivityGraphPan widens the plot and
+               lifts the universal max-width cap inline, and this turns the wrapper into the
+               scroller that pans it (the orange bar comes from setupMobilePanHelpers). A
+               tablet keeps the native graph. */
+            body[data-sff-mobile][data-sff-profile][data-sff-phone] #interval-graph-columns {
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                scrollbar-width: none !important;
+                /* the pan bar sits at the scroller's bottom edge, under the axis labels */
+                padding: 0 0 26px !important;
+            }
+            body[data-sff-mobile][data-sff-profile][data-sff-phone] #interval-graph-columns::-webkit-scrollbar {
+                display: none;
+                height: 0;
+            }
+
+            /* ======== SEGMENT PAGES ======== */
+            /* /segments/:id, /segment_efforts/:id and a segment opened from inside an activity
+               (/activities/:id/segments/:id). These pages drop the .page.container wrapper, so
+               the generic spans rules never reached them and the right column kept its desktop
+               width: the leaderboard filter, the speed column and the Local Legend button were
+               clipped at the edge, and the .row grid never collapsed.
+
+               Every selector here is keyed on the segment-page marker. The inline expansion on
+               an activity page carries the same classes and is left to Strava's own sizing. */
+            body[data-sff-mobile][data-sff-segment] .effort-details,
+            body[data-sff-mobile][data-sff-segment] .spans9,
+            body[data-sff-mobile][data-sff-segment] .spans8,
+            body[data-sff-mobile][data-sff-segment] .spans7,
+            body[data-sff-mobile][data-sff-segment] .leader-board-container,
+            body[data-sff-mobile][data-sff-segment] .local-legend-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                /* full-width column even where the row happens to be a flex box */
+                flex: 0 0 100% !important;
+                float: none !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                box-sizing: border-box !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .segment-effort-detail,
+            body[data-sff-mobile][data-sff-segment] .segment-effort-detail-container,
+            body[data-sff-mobile][data-sff-segment] #segment-effort-detail,
+            body[data-sff-mobile][data-sff-segment] #segment-effort {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 6px !important;
+                box-sizing: border-box !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .row {
+                flex-wrap: wrap !important;
+            }
+
+            /* PR / Your PR blocks float, so their height collapsed and the table header
+               climbed over the rank numbers. Keep them as two contained halves. */
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard .pr-comparison {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 0 10px 0 !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard .pr-comparison > .spans-half {
+                flex: 1 1 0 !important;
+                width: auto !important;
+                max-width: 50% !important;
+                min-width: 0 !important;
+                float: none !important;
+                margin: 0 !important;
+                box-sizing: border-box !important;
+            }
+
+            /* The leaderboard filter (chart icon + the current filter) is pinned to the corner
+               of the leaderboard with desktop offsets, which put it half off the screen. On a
+               phone it belongs in the flow, full width, right above the table it filters. */
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard .drop-down-menu.leaderboard-filter {
+                position: relative !important;
+                top: auto !important;
+                right: auto !important;
+                bottom: auto !important;
+                left: auto !important;
+                float: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 0 10px 0 !important;
+                box-sizing: border-box !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard .drop-down-menu.leaderboard-filter .selection {
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                white-space: nowrap !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard .drop-down-menu.leaderboard-filter .filter-js {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            /* The open list follows the box instead of the desktop's fixed offset, and may scroll
+               when a filter group (clubs, age groups) makes it taller than the screen. */
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard .drop-down-menu.leaderboard-filter ul.options {
+                position: absolute !important;
+                top: 100% !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: auto !important;
+                max-width: 100% !important;
+                max-height: 60vh !important;
+                overflow-y: auto !important;
+                box-sizing: border-box !important;
+                z-index: 30 !important;
+            }
+
+            /* .leaderboard is a horizontal scroller in the mobile sheet, and Firefox turns any
+               overflow-x scroller into a two-axis one. The open filter list hangs below the table,
+               so that box became vertically scrollable (and clipped the list at its bottom edge).
+               The table fits the column now, so the box can overflow visibly and let the list
+               paint over the rows, like it does on desktop. */
+            body[data-sff-mobile][data-sff-segment] .leader-board-container .leaderboard,
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard {
+                overflow: visible !important;
+            }
+
+            /* Five columns (rank, athlete or date, time, speed) do not fit a phone at their
+               content width, which cut the speed column off the right edge. Covers any table in
+               the block, not just table.unstyled. */
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard table {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: fixed !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard table th,
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard table td {
+                padding: 6px 4px !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+                box-sizing: border-box !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard table th:first-child,
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard table td:first-child {
+                width: 26px !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard table th:last-child,
+            body[data-sff-mobile][data-sff-segment] .segment-leaderboard table td:last-child {
+                width: 88px !important;
+                text-align: right !important;
+            }
+
+            /* Local Legend button: it is a nowrap block on desktop, so its text ran past the
+               edge instead of fitting the column. */
+            body[data-sff-mobile][data-sff-segment] .local-legend-button-row a.button {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                white-space: normal !important;
+                text-align: center !important;
+            }
+
+            /* Elevation profile and map share a row; stacked they keep full width. */
+            body[data-sff-mobile][data-sff-segment] .charts.row {
+                display: flex !important;
+                flex-direction: column !important;
+                flex-wrap: nowrap !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            body[data-sff-mobile][data-sff-segment] .effort-map {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+            }
+
+            /* ======== SETTINGS PAGES (My Gear, My Account, ...) ======== */
+            /* Same legacy spans layout as the profile, with a sidebar of settings links where
+               the profile has its tab strip. */
+
+            body[data-sff-mobile][data-sff-settings] .page.container {
+                overflow-x: hidden !important;
+            }
+
+            /* ---- Settings menu: twelve links stacked above the content pushed it a full screen
+               down, so the menu scrolls sideways like a tab strip ---- */
+            body[data-sff-mobile][data-sff-settings] nav.spans3,
+            body[data-sff-mobile][data-sff-settings] nav.spans3 > ul {
+                width: 100% !important;
+                max-width: 100% !important;
+                float: none !important;
+            }
+
+            body[data-sff-mobile][data-sff-settings] ul#settings-menu {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                height: auto !important;
+                max-height: none !important;
+                margin: 0 !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                white-space: nowrap !important;
+                scrollbar-width: none !important;
+                border-bottom: 1px solid #e6e6e6 !important;
+            }
+
+            body[data-sff-mobile][data-sff-settings] ul#settings-menu > li {
+                float: none !important;
+                flex: 0 0 auto !important;
+                margin: 0 !important;
+            }
+
+            body[data-sff-mobile][data-sff-settings] ul#settings-menu > li > a {
+                display: block !important;
+                white-space: nowrap !important;
+                padding: 8px 10px !important;
+            }
+
+            /* ---- Gear header: the image and its Edit button float right on the desktop, which
+               squeezes the details table into a third of a phone ---- */
+            body[data-sff-mobile][data-sff-settings] .gear-image {
+                float: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 auto 8px !important;
+                text-align: center !important;
+            }
+
+            body[data-sff-mobile][data-sff-settings] .gear-image .button.btn-block {
+                max-width: 240px !important;
+                margin: 8px auto 0 !important;
+            }
+
+            body[data-sff-mobile][data-sff-settings] .gear-details,
+            body[data-sff-mobile][data-sff-settings] .gear-details table {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            body[data-sff-mobile][data-sff-settings] .gear-details td {
+                padding: 4px 8px 4px 0 !important;
+                vertical-align: top !important;
+            }
+
+            /* Label column keeps to one line; the value column takes the rest and wraps, so a
+               long note cannot widen the table past the screen */
+            body[data-sff-mobile][data-sff-settings] .gear-details td:first-child {
+                width: 1% !important;
+                white-space: nowrap !important;
+            }
+
+            /* ---- Component tables: seven columns. As a scroller they carried a native
+               horizontal bar, which on Firefox is a full-height band with arrows sitting under
+               the header like a stray row. Fit the table to the width instead and wrap. ---- */
+            body[data-sff-mobile][data-sff-settings] .section > table {
+                display: table !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: auto !important;
+                overflow: visible !important;
+                padding: 0 !important;
+            }
+
+            body[data-sff-mobile][data-sff-settings] .section > table th,
+            body[data-sff-mobile][data-sff-settings] .section > table td {
+                /* Wrap between words only. The widest unbreakable token here is a model name
+                   like "Checkpoint", and seven such columns still fit, so the table does not
+                   need mid-word breaks to stay inside the screen. */
+                white-space: normal !important;
+                overflow-wrap: normal !important;
+                padding: 4px 8px 4px 0 !important;
+                text-align: left !important;
+                vertical-align: top !important;
+            }
+
+            body[data-sff-mobile][data-sff-settings] .section > a.button.right {
+                float: none !important;
+                display: inline-block !important;
+                margin-bottom: 6px !important;
+            }
+
                     `);
     }
 
@@ -9665,6 +10491,7 @@ filterActivities() {
             mobileStyleEl = null;
         }
         document.body.removeAttribute(SFF_MOBILE_ATTR);
+        document.body.removeAttribute('data-sff-phone');
         document.documentElement.classList.remove('mobile');
         document.body.classList.remove('mobile');
         // Remove inline styles we may have set
@@ -9672,6 +10499,7 @@ filterActivities() {
             el.style.cssText = '';
             el.removeAttribute('data-sff-mobile-inline');
         });
+        clearPanStrips();
         // Restore html/body styles
         document.documentElement.style.removeProperty('min-width');
         document.documentElement.style.removeProperty('width');
@@ -9816,12 +10644,17 @@ filterActivities() {
         if (!isMobile) {
             // Remove inline overrides at desktop widths
             document.body.removeAttribute(SFF_MOBILE_ATTR);
+            document.body.removeAttribute('data-sff-phone');
             document.documentElement.classList.remove('mobile');
             document.body.classList.remove('mobile');
             document.querySelectorAll('[data-sff-mobile-inline]').forEach(el => {
                 el.style.cssText = '';
                 el.removeAttribute('data-sff-mobile-inline');
             });
+            // The trophy fold hides items with those same inline overrides, so its button goes
+            // with them instead of standing over a list that is fully visible again.
+            document.querySelectorAll('.sff-trophies-more').forEach(el => el.remove());
+            clearPanStrips();
             // The html/body overrides in the mobile branch are written without the marker
             // above, so nothing else would ever take them off: a window widened past the
             // breakpoint kept `overflow-x: hidden` and `width: 100%`, which clips Strava's
@@ -9838,6 +10671,10 @@ filterActivities() {
 
         // Ensure the attribute is on body so CSS rules also fire
         document.body.setAttribute(SFF_MOBILE_ATTR, '1');
+
+        // The profile graph only gets its pannable strip on phones.
+        if (sffIsPhoneWidth()) document.body.setAttribute('data-sff-phone', '1');
+        else document.body.removeAttribute('data-sff-phone');
 
         // Add 'mobile' class to html and body — this triggers Strava's own
         // built-in mobile CSS (hamburger menu, compact header, responsive tables).
@@ -9922,26 +10759,53 @@ filterActivities() {
 
     function applyMobileResponsive() {
         setupTinyScrollTouchGuard();
+
+        // Profile, settings and segment pages share the sheet but not one wrapper id, so each
+        // page type gets a body marker: the overview wraps its content in #athlete-profile while
+        // the trophy case does not, the settings pages use a sidebar instead of tabs, and the
+        // segment pages drop the .page.container wrapper altogether.
+        [['data-sff-profile', UtilsModule.isOnProfilePage()],
+         ['data-sff-settings', UtilsModule.isOnSettingsPage()],
+         ['data-sff-segment', UtilsModule.isOnSegmentPage()]].forEach(([attr, on]) => {
+            if (on) document.body.setAttribute(attr, '1');
+            else document.body.removeAttribute(attr);
+        });
+
         if (!settings || !settings.enabled || !settings.mobileResponsive) {
             removeMobileResponsiveCSS();
             applyTinyVerticalScrollFix();
             return;
         }
-        if (UtilsModule.isOnActivityPage()) {
+        if (UtilsModule.wantsMobileSheet()) {
             injectMobileResponsiveCSS();
             const isMobile = sffIsMobileWidth();
             if (isMobile) {
                 applyMobileInlineOverrides(true);
             }
+            if (UtilsModule.isOnProfilePage()) {
+                // Runs here rather than in init so it also covers SPA navigation between the
+                // profile tabs; the retries catch blocks that arrive after the path change.
+                const warmProfile = () => {
+                    LogicModule.setupProfileTrophyCollapse();
+                    LogicModule.setupActivityGraphPan();
+                };
+                warmProfile();
+                setTimeout(warmProfile, 600);
+                setTimeout(warmProfile, 1500);
+                setTimeout(warmProfile, 3000);
+            }
             // Re-apply on resize using outerWidth
             if (!window.__sffResizeHandler) {
                 window.__sffResizeHandler = () => {
-                    if (!UtilsModule.isOnActivityPage()) return;
+                    if (!UtilsModule.wantsMobileSheet()) return;
                     if (sffIsMobileWidth()) {
                         applyMobileInlineOverrides(true);
                     } else {
                         applyMobileInlineOverrides(false);
                     }
+                    // The graph's widened plot is measured, so a rotation or a window drag
+                    // has to re-fit it (or hand the native width back above the phone size).
+                    if (UtilsModule.isOnProfilePage()) LogicModule.setupActivityGraphPan();
                 };
                 window.addEventListener('resize', window.__sffResizeHandler, { passive: true });
             }
@@ -10192,21 +11056,27 @@ filterActivities() {
         setupGlobalFeatures();
 
         // Always create UI elements (dashboard full panel or activity page minimal nav)
-        if (!document.querySelector('.sff-clean-panel') && !document.querySelector('.sff-secondary-nav')) {
-            UIModule.createElements();
+        try {
+            if (!document.querySelector('.sff-clean-panel') && !document.querySelector('.sff-secondary-nav')) {
+                UIModule.createElements();
+            }
+        } catch (e) {
+            // A UI failure must not take the filtering below down with it
         }
+
+        // Align our control row with Strava's header column on every page type
+        try { UIModule.syncHeaderLayout(); } catch (e) {}
 
         // Dashboard-specific initialization
         if (UtilsModule.isOnDashboard()) {
             // Mark body as dashboard for responsive CSS that relies on this flag
             document.body.setAttribute('data-sff-dashboard', 'true');
-            
-            // Ensure secondary kudos button is properly synchronized
-            UIModule.syncSecondaryKudosVisibility();
-            // Ensure header kudos button is created/removed according to settings immediately
-            LogicModule.manageHeaderKudosButton();
-            LogicModule.filterActivities();
-            LogicModule.setupAutoFilter();
+
+            // Run the same full pass the popup's toggle runs: activities, sections, embeds and the
+            // counters. A feed-only pass left sections untouched until the next feed mutation, so a
+            // freshly loaded page looked unfiltered until the popup kicked it.
+            try { LogicModule.applyAllFilters(); } catch (e) {}
+            try { LogicModule.setupAutoFilter(); } catch (e) {}
         }
 
         // "?" icons (stats grid etc.) open their info on tap for touch devices
@@ -10225,6 +11095,7 @@ filterActivities() {
         if (UtilsModule.isOnActivityPage()) {
             LogicModule.renderDetailPageStats();
             LogicModule.ensureDetailPageTitle();
+            LogicModule.applyDetailPageEmbeds();
         }
     })();
 

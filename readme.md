@@ -21,6 +21,8 @@ with Strava's design.
 
 ## 🆕 What's New
 
+- **v2.8.3** — 🐛 **Fixed for Strava's new header!** Strava rebuilt the global header as a React component, which took the filter button's anchor, the header kudos button and the header row with it — the button ended up below the feed and the row stayed hidden. Both buttons now sit on the new header's notification item, and the row takes over as soon as Strava drops its own main links. The "Show more stats" button in the feed is back as well.
+- **v2.8.2** — 🎛️ **Filter modes & a much wider mobile layout!** The on/off switch is now a five-button mode bar — **OFF / LIGHT / MEDIUM / STRICT / CUSTOM** — each preset describing exactly what it hides, with your own configuration untouched underneath. 📱 The opt-in mobile layout now covers **athlete profiles, settings pages (My Gear, My Account) and segment pages** as well as activity details. Filter and kudos buttons move as one set below the header once it runs out of room, instead of shrinking to an icon. New **KlimatApp** and **MyBikeTraffic** embed filters, embed filtering on activity detail pages, and a fix for the Wandrer snippet being left half visible.
 - **v2.8.1** — 🐛 **Group filtering fix & new post controls!** Group activities now resolve their sport from the group header ("X rode / ran / walked / hiked / swam with Y") plus the recording platform, so **Virtual Ride / Virtual Run** and other sport filters now catch group entries too. New **Hide athlete posts** and **Hide Strava promotional posts** options in the Other section keep non-activity cards out of the feed.
 - **v2.8.0** — ➕ Added **Physical Therapy** to the Activity Types filter (56 types) to match Strava's new dedicated sport type for recovery & rehabilitation sessions. Also added **Indoor Cycling**, **Long Run**, **Treadmill** and **Competition** to the Activity Tags filter (11 tags). New **Hide Untagged** option in the Activity Tags section hides all activities that have no tags. 📱 New opt-in **Mobile Responsive** layout adapts **activity detail pages** to phones and narrow windows (beta — more pages coming). 🐛 Fixed the notification bell's red count requiring two opens to clear on mobile.
 - **v2.7.0** — ✨ **Custom embed & device filtering improvements!** New custom embed filters field in 3rd Party Embeds section with real-time matching. Custom recording device field now also applies in real-time. Fixed partial device name matching (e.g. "ELEMNT" now matches "Wahoo ELEMNT ROAM").
@@ -58,7 +60,8 @@ with Strava's design.
 - **Strava Promotional Posts**: Option to hide trial offers and Strava promo cards in the feed
 - **Challenge Filtering**: Hide your challenges section
 - **Hide Joined Challenges**: Hide athletes' joined challenge cards from the feed
-- **External Service Embeds Filtering**: Option to hide text embeds from third-party services in activity descriptions (e.g., myWindsock report, summitbag.com, Run Health, Wandrer, Bandok.com, COROS)
+- **External Service Embeds Filtering**: Option to hide text embeds from third-party services in activity descriptions (e.g., myWindsock report, summitbag.com, Run Health, Wandrer, Bandok.com, COROS, Rouvy, eVISO, Cyql, Restortrain, KlimatApp, MyBikeTraffic), with a custom pattern field for anything else
+- **Embed Filters on Detail Pages**: The preset embed filters also run on an activity detail page, where the description is rendered outside the feed
 - **Athlete Management**: Ignore specific athletes to hide all their activities from your feed
 - **UI Sections Hiding**: Hide "Suggested Friends" and "Your Clubs" sections site-wide
 
@@ -103,10 +106,9 @@ with Strava's design.
 
 The filter adapts seamlessly to different screen sizes with enhanced mobile support:
 
-- **Desktop (>1479px)**: Full-featured panel with all options, main filter button in header
-- **Tablet (991px - 1479px)**: Secondary navigation bar with filter and kudos buttons
-- **Mobile (≤990px)**:
-  - Compact secondary navigation bar
+- **Desktop**: Full-featured panel with all options; the filter and kudos buttons sit in Strava's header row
+- **Narrower windows**: Once the header runs out of room (or Strava collapses it behind the hamburger), both buttons move together into a row below the header at full size, aligned to the header's content column — the switch is measured from the header's own layout, not a fixed breakpoint
+- **Mobile (≤1305px)**: Strava's own mobile layout takes over, with our row, compact header and hamburger handling
   - **Notification bell** for quick access to Strava notifications
   - Real-time unread notification badge
   - Tap bell to view notification dropdown
@@ -118,9 +120,16 @@ The filter adapts seamlessly to different screen sizes with enhanced mobile supp
 ![Responsive design](./src/readme-images/responsive-layout.png)
 *Filter button adapts to different screen sizes*
 
-### 📱 Mobile Responsive Activity Details (Beta)
+### 📱 Mobile Responsive Layout (Beta)
 
-> 🚧 **Work in progress.** Our opt-in **Mobile Responsive** mode currently reflows **activity detail pages** for phones and narrow browser windows — restoring Strava's native header, reorganising the stats, adding swipe/drag panning for the elevation chart and segment tables, a back-to-top button, and full-screen photo lightboxes. The dashboard and other pages will be made responsive in future updates.
+> 🚧 **Work in progress.** Our opt-in **Mobile Responsive** mode reflows Strava's fixed-width pages for phones and narrow browser windows:
+>
+> - **Activity details** — Strava's native Name–Type header, a reorganised stats grid, swipe/drag panning for the elevation chart and segment tables, full-screen photo lightboxes and a back-to-top button.
+> - **Athlete profiles** — the photo collage, Last 4 Weeks summary, tab strip and trophies stack into single columns; trophies are capped at three rows with a **Show all N trophies** button, and the activity-log graph becomes a pannable strip on phones.
+> - **Settings pages** — My Gear, My Account and component pages: the settings menu scrolls sideways like a tab strip, the gear image and Edit button stop floating, and the component tables fit the screen instead of scrolling.
+> - **Segment pages** — the leaderboard, filter dropdown, PR comparison and Local Legend button fit the column, and the elevation profile and map stack.
+>
+> The dashboard feed keeps Strava's native layout for now.
 
 ## 🎛️ Settings Panel
 
@@ -305,7 +314,7 @@ See the difference filtering makes on your Strava feed:
 ## Changelog
 
 For the complete release notes, see [CHANGELOG.md](./CHANGELOG.md).
-Latest release: v2.8.1 (22.10.2026) - Group activity sport detection for virtual/sport filters, Hide athlete posts, and Hide Strava promotional posts.
+Latest release: v2.8.3 (28.10.2026) - Compatibility fix for Strava's new React header (header row, filter and kudos buttons, "Show more stats" in the feed).
 
 ## 📄 License
 
