@@ -1,5 +1,37 @@
 # Changelog
 
+## [v2.8.4] - 29.10.2026 (Firefox & Chrome Extensions)
+
+### v2.8.4 Bug Fixes
+
+- **Header Scrolled Away With the Feed**
+  - Strava's rebuilt header sits in the normal page flow instead of being pinned, so it left the screen on the first scroll and took the only way into the panel with it - on a phone every settings change meant scrolling back to the top.
+  - The header is sticky again, and our own row inside it comes along, so the filter button stays within reach. Sticky keeps the bar in the flow, so nothing below it had to be pushed down.
+
+- **Two Notification Bells in the Narrow Header**
+  - Strava's own bell stayed visible in its header even though our row carries its own, so two of them showed at once on a phone.
+  - The native bell now steps aside wherever ours is shown, and comes back when "Show notifications bell (mobile)" is switched off or on the wider layout where our bell is hidden.
+
+- **Search Icon Left in the Narrow Header**
+  - The icon stayed in the header at the widths where our row takes over, taking room the filter button needed. It is now hidden together with the header filter and kudos buttons, on both header builds — Strava's rebuilt header draws it as its own button instead of the old `#open-global-search-button`, and both are covered.
+  - It stayed on a phone as well: the dashboard is left out of the mobile layout, so the mobile marker never reaches it and Strava reports the viewport there at ~1248 px, above the hand-over width. The header now also trims itself from the real window width, which is the signal the mobile layout uses.
+
+- **Version Read-out Kept Reporting the Older Release**
+  - The "Update check" line at the bottom of Settings compared the running build against the published `version.json`, so during a release it kept naming the previous release, and the copy bundled with the build was only read when GitHub could not be reached at all. On Firefox a content-script fetch of that bundled file can fail outright under the page's CSP, so it stayed out of the picture there too.
+  - The build's own number is now taken from the extension manifest for every check, and the newer of that and the published entry is used, so the read-out names the release that is actually running.
+  - The footer version no longer falls back to a number frozen in the script (`2.4.5`) when no extension API is available; it now comes from the same manifest source.
+
+- **Our Bell Painted Over Strava's User Menu**
+  - The row is the header's last child, so the user menu that drops out of Strava's own bar opened underneath our bell and filter button — the top of the menu was covered by them, and its links could not be reached.
+  - Strava's bar (and the container the rebuilt header wraps it in) now sits above our row, the same way the mobile layout lifts `nav.nav-bar`, while the header itself stays under Strava's own popovers.
+
+- **Row Hand-over Came One Step Too Late**
+  - At 1205 px the filter button's label was already squeezed, one px above the hand-over width, so the row now takes over from 1205 px.
+
+- **"Hide Start Trial" Did Nothing on the New Header**
+  - The filter looked for the subscribe link inside Strava's old `li.nav-item.upgrade` wrapper, which the React header no longer renders, so nothing matched and the orange button stayed in the header.
+  - The subscribe link itself is now the target, so the setting works on both header builds; the list item is still hidden when one is present.
+
 ## [v2.8.3] - 28.10.2026 (Firefox & Chrome Extensions)
 
 ### v2.8.3 Bug Fixes

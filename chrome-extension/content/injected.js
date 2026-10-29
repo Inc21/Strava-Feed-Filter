@@ -662,6 +662,18 @@ function getSettingsIconUrl() {
         margin-right: 8px !important;
       }
 
+      /* At the widths where our row carries the bell, Strava's header copy is a duplicate of it,
+         so the native one steps aside. The flag is set by toggleNotificationBell(), so the native
+         bell comes back when our own notifications are switched off. */
+      @media (max-width: 990px) {
+        body[data-sff-bell="on"] #global-header li#notifications,
+        body[data-sff-bell="on"] #global-header li:has([data-cy="notifications-bell"]),
+        body[data-sff-bell="on"] #global-header [data-cy="notifications-bell"],
+        body[data-sff-bell="on"] #global-header button[aria-label="Notifications"] {
+          display: none !important;
+        }
+      }
+
       /* The header button never leaves Strava's header flow and never shrinks: while the row can
          hold it, it sits in the row at its normal size. Once the header runs out of room (or
          Strava collapses its nav behind the burger), our whole control set moves to the row below,
@@ -676,6 +688,23 @@ function getSettingsIconUrl() {
 
       /* The row carries its own kudos button, so the header one steps aside with the filter */
       body[data-sff-header-compact="true"] #gj-kudos-li {
+        display: none !important;
+      }
+
+      /* Once the row is in charge, the search icon is the next control to go: our row already
+         holds what is worth reaching from here, and the space the icon takes was part of what
+         squeezed the filter button's label before the hand-over. The React header renders its own
+         Button component for it instead of the old #open-global-search-button, so the icon is
+         matched by its label as well.
+         The compact flag is not enough on a phone: the dashboard is left out of the mobile sheet,
+         Strava keeps its own header there and reports the viewport at ~1248 px, so the hand-over
+         never fires. That is what the narrow flag covers, set from the window width in
+         syncHeaderLayout(). */
+      body[data-sff-header-compact="true"] #global-header #open-global-search-button,
+      body[data-sff-header-compact="true"] #global-header button[aria-label="Search"],
+      body[data-sff-narrow-header="true"] #global-header #open-global-search-button,
+      body[data-sff-narrow-header="true"] #global-header button[aria-label="Search"],
+      body[data-sff-narrow-header="true"] button[aria-label="Search"][class*="Search_searchIcon"] {
         display: none !important;
       }
 
@@ -1713,6 +1742,26 @@ function getSettingsIconUrl() {
       .sff-secondary-nav {
         padding-left: max(16px, var(--sff-header-inset-left, 16px)) !important;
         padding-right: max(16px, var(--sff-header-inset-right, 16px)) !important;
+      }
+
+      /* Strava's rebuilt header sits in the page flow and scrolls away with the feed, taking the
+         only way into the panel with it - on a phone every settings change meant scrolling back to
+         the top. The flag is set in syncHeaderLayout() for a header Strava does not already pin.
+         Sticky keeps the bar in the flow, so nothing below it has to be pushed down. */
+      body[data-sff-sticky-header="true"] #global-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1000 !important;
+      }
+
+      /* Strava's user menu drops out of its own header bar, and our row is the header's last
+         child, so the menu was painted under the row and its bell. The bar - and the container
+         the React header wraps it in - goes over the row instead, the same way the mobile layout
+         lifts nav.nav-bar. Our own row is a direct child of the header too, so it is excluded. */
+      body:has(#global-header nav) #global-header > div:not(.sff-secondary-nav),
+      body:has(#global-header nav) #global-header > nav {
+        position: relative !important;
+        z-index: 1100 !important;
       }
 
       /* The React header wraps its whole bar in a single container div. Should that header lay
@@ -2932,23 +2981,55 @@ function getSettingsIconUrl() {
             return null;
         },
 
+        // Take the newer of the GitHub and bundled entry for every browser the files describe. The
+        // bundled file is optional, so a build without it behaves exactly as before.
+        mergeVersionInfo(remoteData, bundledData) {
+            if (!bundledData) return { data: remoteData, fromBundled: false };
+            if (!remoteData) return { data: bundledData, fromBundled: true };
+
+            const data = Object.assign({}, remoteData);
+            let fromBundled = false;
+            Object.keys(bundledData).forEach(key => {
+                const bundled = bundledData[key];
+                if (!bundled || !bundled.latest) return;
+                const remote = data[key];
+                // The published entry wins ties: it is the one the store serves.
+                if (remote && remote.latest
+                    && this.compareVersions(bundled.latest, remote.latest) <= 0) return;
+                data[key] = Object.assign({}, remote, bundled);
+                fromBundled = true;
+            });
+            return { data, fromBundled };
+        },
+
         async getRemoteInfo(forceRefresh = false) {
             const now = Date.now();
             const cached = await Storage.get(VERSION_CHECK_STORAGE_KEY, null);
 
             if (!forceRefresh && cached && cached.timestamp && cached.data) {
                 const age = now - cached.timestamp;
-                if (age < VERSION_CHECK_INTERVAL_MS) {
+                // A cached entry that is older than the build doing the asking cannot be the latest
+                // any more - a new build just landed - so it never wins over a fresh check.
+                const current = this.getCurrentVersion();
+                const stale = !!current && Object.keys(cached.data).some(key => {
+                    const latest = cached.data[key] && cached.data[key].latest;
+                    return !!latest && this.compareVersions(latest, current) < 0;
+                });
+                if (age < VERSION_CHECK_INTERVAL_MS && !stale) {
                     return cached.data;
                 }
             }
 
-            let source = 'github';
-            let fresh = await this.fetchRemoteInfo();
-            if (!fresh) {
-                source = 'bundled';
-                fresh = await this.fetchLocalVersionInfo();
-            }
+            // The bundled file ships with this build, so it can be ahead of the published one: a
+            // release is prepared locally before its version.json is pushed, and the read-out kept
+            // reporting the previous release until it was. The newer of the two is used for every
+            // browser entry, and the source says where that entry came from.
+            const merged = this.mergeVersionInfo(
+                await this.fetchRemoteInfo(),
+                await this.fetchLocalVersionInfo()
+            );
+            const fresh = merged.data;
+            const source = merged.fromBundled ? 'bundled' : 'github';
             if (fresh) {
                 await Storage.set(VERSION_CHECK_STORAGE_KEY, {
                     timestamp: now,
@@ -3035,6 +3116,21 @@ function getSettingsIconUrl() {
         },
 
         async fetchLocalVersionInfo() {
+            // This build's own number is the manifest's: it is the newest release known to the
+            // copy that is running, and it is in hand without a request. Reading the bundled
+            // version.json instead left the read-out reporting the last published release while a
+            // newer one was being prepared, and a content-script fetch of an extension URL is
+            // subject to the page's CSP in Firefox, which could fail outright there.
+            const current = this.getCurrentVersion();
+            if (current) {
+                return {
+                    chrome: {
+                        latest: current,
+                        store_url: DEFAULT_STORE_URL
+                    }
+                };
+            }
+            // No extension API to ask: the bundled file is the only other source of that number.
             try {
                 if (!ext || !ext.runtime || typeof ext.runtime.getURL !== 'function') return null;
                 const localUrl = ext.runtime.getURL(LOCAL_VERSION_FILE);
@@ -3291,6 +3387,10 @@ function getSettingsIconUrl() {
             // The header row state is decided per page below; page switches start from the
             // in-header layout so a stale compact state cannot leak onto another page.
             document.body.removeAttribute('data-sff-header-compact');
+            document.body.removeAttribute('data-sff-bell');
+            // Phone-only header trimming: the dashboard never gets the mobile attribute, so the
+            // width has to be read here (and again in syncHeaderLayout when the window changes).
+            sffSyncNarrowHeaderFlag();
 
             // Only create elements on dashboard
             const isDashboardPage = UtilsModule.isOnDashboard();
@@ -3586,10 +3686,10 @@ function getSettingsIconUrl() {
             const body = document.body;
             const header = document.querySelector('#global-header');
             // Our buttons keep their label on one line and never shrink, so they run out of room
-            // well before Strava's nav gives up at 990 px: around 1200 px the filter button's
+            // well before Strava's nav gives up at 990 px: around 1205 px the filter button's
             // label was already wrapping inside its 32 px pill. From there the row takes over on
             // both header builds, instead of waiting for a signal that only arrives too late.
-            const ROW_HANDOVER_WIDTH = 1200;
+            const ROW_HANDOVER_WIDTH = 1205;
             // Detail pages do not always use a <nav> element for the bar, so match the class only;
             // without it the row keeps its fallback padding instead of following the header column.
             const navBar = header?.querySelector('.nav-bar');
@@ -3617,6 +3717,23 @@ function getSettingsIconUrl() {
                 body.style.setProperty('--sff-header-inset-left', Math.round(frameRect.left) + 'px');
                 body.style.setProperty('--sff-header-inset-right', Math.round(document.documentElement.clientWidth - frameRect.right) + 'px');
             }
+
+            // Strava's rebuilt header sits in the page flow and scrolls away with the feed, taking
+            // the only way into the panel with it - on a phone every settings change meant scrolling
+            // back to the top. The legacy header pins itself already and the margin compensation
+            // elsewhere assumes that, so the flag that pins it from the stylesheet is only set for a
+            // header Strava does not pin. It lives on <body> so a header React re-renders later is
+            // still covered.
+            if (header) {
+                body.setAttribute('data-sff-sticky-header',
+                    getComputedStyle(header).position === 'fixed' ? 'false' : 'true');
+            }
+
+            // A phone never reaches the hand-over test: the dashboard is left out of the mobile
+            // sheet, Strava keeps its own header there and reports the viewport at ~1248 px, so the
+            // row stays off and the compact flag never rises. The window width is the one signal
+            // that still says "this is a phone".
+            sffSyncNarrowHeaderFlag();
 
             // The nav is a flex-wrap container, so once our button stops fitting the whole user
             // group drops onto a second line instead of overflowing - scrollWidth stays equal and
@@ -3758,6 +3875,9 @@ function getSettingsIconUrl() {
                 } else {
                     notificationBell.style.setProperty('display', 'none', 'important');
                 }
+                // Our bell replaces Strava's in the narrow header; the width half of that rule
+                // lives in the stylesheet.
+                document.body.setAttribute('data-sff-bell', shouldShow ? 'on' : 'off');
                 // Also hide/show the overlay if it's open
                 const overlay = document.querySelector('.sff-notification-overlay');
                 if (overlay && !shouldShow) {
@@ -5120,14 +5240,13 @@ function getSettingsIconUrl() {
             try {
                 const versionEl = panel.querySelector('#sff-version');
                 if (versionEl) {
-                    if (ext && ext.runtime && ext.runtime.getManifest) {
-                        const manifest = ext.runtime.getManifest();
-                        if (manifest && manifest.version) {
-                            versionEl.textContent = `Version ${manifest.version}`;
-                        }
-                    } else {
-                        // Fallback version if extension API not available
-                        versionEl.textContent = 'Version 2.4.5';
+                    // The manifest is the copy that is running, so the line always follows the
+                    // build instead of a number frozen into the script. Without an extension API
+                    // (a page harness) it is left as it is rather than reporting a release that
+                    // has long been replaced.
+                    const currentVersion = UpdateModule.getCurrentVersion();
+                    if (currentVersion) {
+                        versionEl.textContent = `Version ${currentVersion}`;
                     }
                 }
             } catch (error) {
@@ -6349,7 +6468,10 @@ function getSettingsIconUrl() {
         updateStartTrialVisibility() {
             try {
                 // Target: <li class="nav-item upgrade"><a class="experiment btn btn-sm btn-primary" href="/subscribe?cta=free-trial&element=link&origin=global_nav">Start Trial</a></li>
-                const links = document.querySelectorAll('li.nav-item.upgrade a[href*="/subscribe"][href*="cta=free-trial"][href*="origin=global_nav"]');
+                // The React header drops the `nav-item upgrade` list item and renders Strava's own
+                // Button component in its place, so the link is matched on its own and the list
+                // item is only used when one is still there.
+                const links = document.querySelectorAll('a[href*="/subscribe"][href*="cta=free-trial"][href*="origin=global_nav"]');
                 links.forEach(a => {
                     const li = a.closest('li.nav-item.upgrade');
                     const targetElement = li || a;
@@ -9241,6 +9363,15 @@ function getSettingsIconUrl() {
         return window.outerWidth <= SFF_PHONE_BREAKPOINT;
     }
 
+    // Strava's own header keeps a search icon that our row has no use for on a phone. The
+    // dashboard is left out of the mobile layout, so `data-sff-mobile` never reaches it and the
+    // header there reports ~1248 px - the hand-over width cannot carry this. The flag below is
+    // set from the real window width instead, and the stylesheet keys the icon off it.
+    function sffSyncNarrowHeaderFlag() {
+        if (sffIsMobileWidth()) document.body.setAttribute('data-sff-narrow-header', 'true');
+        else document.body.removeAttribute('data-sff-narrow-header');
+    }
+
     // The profile graph's plot is widened in px (setupActivityGraphPan), and the two
     // percentage-positioned plot layers are stretched with it. All of that is inline,
     // so it has to be taken off by hand when the graph stops being pannable.
@@ -9943,7 +10074,8 @@ function getSettingsIconUrl() {
                detail views) have nothing worth searching from inside them, so only that one
                header button goes: the icon itself, never its wrapper, so the bell and
                avatar keep the layout they are positioned against. */
-            body[data-sff-mobile] #global-header:has(> .sff-secondary-nav) #open-global-search-button {
+            body[data-sff-mobile] #global-header:has(> .sff-secondary-nav) #open-global-search-button,
+            body[data-sff-mobile] #global-header:has(> .sff-secondary-nav) button[aria-label="Search"] {
                 display: none !important;
             }
 
@@ -11167,6 +11299,7 @@ function getSettingsIconUrl() {
             } else {
                 // We navigated away from dashboard, cleanup dashboard-specific elements
                 document.body.removeAttribute('data-sff-dashboard');
+                document.body.removeAttribute('data-sff-bell');
                 document.querySelectorAll('.sff-clean-btn, .sff-clean-panel, .sff-secondary-nav').forEach(el => el.remove());
                 // Remove header kudos button if it exists
                 const kudosLi = document.getElementById('gj-kudos-li');

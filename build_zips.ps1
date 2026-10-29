@@ -31,9 +31,9 @@ function Build-ExtensionZip {
 }
 
 Write-Host "Building Chrome extension zip..."
-Build-ExtensionZip -SourceDir (Join-Path $base "chrome-extension") -ZipPath (Join-Path $dist "StravaFeedFilter-Chrome-v2.8.3.zip")
+Build-ExtensionZip -SourceDir (Join-Path $base "chrome-extension") -ZipPath (Join-Path $dist "StravaFeedFilter-Chrome-v2.8.4.zip")
 
 Write-Host "Building Firefox extension zip..."
-Build-ExtensionZip -SourceDir (Join-Path $base "firefox-extension") -ZipPath (Join-Path $dist "StravaFeedFilter-Firefox-v2.8.3.zip")
+Build-ExtensionZip -SourceDir (Join-Path $base "firefox-extension") -ZipPath (Join-Path $dist "StravaFeedFilter-Firefox-v2.8.4.zip")
 
 Write-Host "Done!"

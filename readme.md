@@ -21,6 +21,7 @@ with Strava's design.
 
 ## 🆕 What's New
 
+- **v2.8.4** — 📌 **The header stays put!** Strava's rebuilt header scrolls away with the page, which on a phone meant scrolling back to the top for every settings change. It is pinned again, so the filter row is always within reach. Strava's own notification bell and search icon now step aside in the narrow header — on a phone too — so there is only one bell and more room for the buttons. Also fixed: Strava's user menu opens over the row instead of under it, **Hide "Start Trial"** works again with the new header, and the version read-out at the bottom of Settings names the release that is running instead of the one before it.
 - **v2.8.3** — 🐛 **Fixed for Strava's new header!** Strava rebuilt the global header as a React component, which took the filter button's anchor, the header kudos button and the header row with it — the button ended up below the feed and the row stayed hidden. Both buttons now sit on the new header's notification item, and the row takes over as soon as Strava drops its own main links. The "Show more stats" button in the feed is back as well.
 - **v2.8.2** — 🎛️ **Filter modes & a much wider mobile layout!** The on/off switch is now a five-button mode bar — **OFF / LIGHT / MEDIUM / STRICT / CUSTOM** — each preset describing exactly what it hides, with your own configuration untouched underneath. 📱 The opt-in mobile layout now covers **athlete profiles, settings pages (My Gear, My Account) and segment pages** as well as activity details. Filter and kudos buttons move as one set below the header once it runs out of room, instead of shrinking to an icon. New **KlimatApp** and **MyBikeTraffic** embed filters, embed filtering on activity detail pages, and a fix for the Wandrer snippet being left half visible.
 - **v2.8.1** — 🐛 **Group filtering fix & new post controls!** Group activities now resolve their sport from the group header ("X rode / ran / walked / hiked / swam with Y") plus the recording platform, so **Virtual Ride / Virtual Run** and other sport filters now catch group entries too. New **Hide athlete posts** and **Hide Strava promotional posts** options in the Other section keep non-activity cards out of the feed.
@@ -314,7 +315,7 @@ See the difference filtering makes on your Strava feed:
 ## Changelog
 
 For the complete release notes, see [CHANGELOG.md](./CHANGELOG.md).
-Latest release: v2.8.3 (28.10.2026) - Compatibility fix for Strava's new React header (header row, filter and kudos buttons, "Show more stats" in the feed).
+Latest release: v2.8.4 (29.10.2026) - Sticky header, a slimmer narrow header (one notification bell, no search icon), a correct version read-out and a working "Hide Start Trial" setting.
 
 ## 📄 License
 
